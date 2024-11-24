@@ -3,17 +3,29 @@
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { useEffect, useState } from 'react'
-import { useUser } from '../../../context/UserContext'
-import { surveyQuestions } from '../../../data/surveyQuestions'
-import { supabase } from '../../../lib/supabaseClient'
+import { useUser } from '@/context/UserContext'
+import { surveyQuestions } from '@/data/surveyQuestions'
+import { supabase } from '@/lib/clients/supabaseClient'
+import { yupResolver } from '@hookform/resolvers/yup'
+import * as yup from 'yup'
+import { loadStripe } from '@stripe/stripe-js';
 
 interface FormData {
   answer: string
 }
 
+// Define validation schema based on current step
+const validationSchema = yup.object().shape({
+  answer: yup.string().required('This field is required').max(1000, 'Maximum length exceeded'),
+})
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+
 export default function SurveyStep({ params }: { params: { step: string } }) {
   const router = useRouter()
-  const { register, handleSubmit } = useForm<FormData>()
+  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+    resolver: yupResolver(validationSchema),
+  })
   const { session } = useUser()
   const [mounted, setMounted] = useState(false)
   const currentStep = parseInt(params.step)
@@ -31,23 +43,36 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
   }
 
   const onSubmit = async (data: FormData) => {
-    const updates = {
-      user_id: session?.user.id,
-      [question.fieldName]: data.answer,
-    }
-
-    const { error } = await supabase
-      .from('survey_responses')
-      .upsert(updates, { onConflict: 'user_id' })
-
-    if (error) {
-      console.error('Error saving response:', error.message)
-    } else {
-      if (currentStep < surveyQuestions.length) {
-        router.push(`/survey/${currentStep + 1}`)
-      } else {
-        router.push('/dashboard')
+    try {
+      if (!session?.user.id) {
+        console.error('No user ID found')
+        return
       }
+
+      const { error } = await supabase
+        .from('survey_responses')
+        .upsert({
+          user_id: session.user.id,
+          ...{
+            [question.fieldName]: data.answer
+          }
+        }, {
+          onConflict: 'user_id'
+        })
+
+      if (error) {
+        console.error('Supabase error:', error)
+        return
+      }
+
+      // If this is the last question, redirect to payment
+      if (currentStep === surveyQuestions.length) {
+        router.push('/payment')
+      } else {
+        router.push(`/survey/${currentStep + 1}`)
+      }
+    } catch (err) {
+      console.error('Error in form submission:', err)
     }
   }
 
@@ -80,7 +105,7 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
             </label>
             <div className="space-y-4">
               <textarea
-                {...register('answer', { required: true })}
+                {...register('answer')}
                 className="w-full px-6 py-4 bg-[#1a1f2e] rounded-xl
                            border-2 border-[#f5a524]/30 text-lg text-white
                            placeholder-[#f5a524]/40 min-h-[200px]
@@ -89,6 +114,7 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
                 placeholder={question.placeholder}
                 autoFocus
               />
+              {errors.answer && <p className="text-red-500">{errors.answer.message}</p>}
               <div className="text-sm bg-[#1a1f2e] p-6 rounded-xl border border-[#f5a524]/30">
                 <p className="font-medium mb-3 text-[#f5a524]">{question.guidance.title}</p>
                 <ul className="space-y-2 text-white/90">

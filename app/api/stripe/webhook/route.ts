@@ -1,55 +1,76 @@
 // app/api/stripe/webhook/route.ts
 import { NextResponse } from 'next/server'
-import Stripe from 'stripe'
-import { supabase } from '../../../../lib/supabaseClient'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2022-11-15',
-})
+import { stripe } from '@/lib/clients/stripeClient'
+import { headers } from 'next/headers'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
+import { generateProjectAssets } from '@/lib/utils/generateProjectPlan'
 
 export async function POST(request: Request) {
-  const payload = await request.text()
-  const sig = request.headers.get('stripe-signature') as string
-
-  let event: Stripe.Event
+  const body = await request.text()
+  const signature = headers().get('stripe-signature')!
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
   try {
-    event = stripe.webhooks.constructEvent(
-      payload,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET as string
+    const event = stripe.webhooks.constructEvent(
+      body,
+      signature,
+      webhookSecret
     )
-  } catch (err: any) {
-    return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 })
-  }
 
-  // Handle the event
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object as Stripe.Checkout.Session
+      const supabase = createRouteHandlerClient({ cookies })
 
-    // Get the user's email from the session
-    const email = session.customer_email
+      // Get user data
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', session.customer_email)
+        .single()
 
-    // Fetch the user's ID from Supabase using their email
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .single()
+      if (userError || !userData) {
+        throw new Error('User not found')
+      }
 
-    if (userError || !userData) {
-      console.error('Error fetching user:', userError?.message)
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      // Get survey responses
+      const { data: surveyData, error: surveyError } = await supabase
+        .from('survey_responses')
+        .select('*')
+        .eq('user_id', userData.id)
+        .single()
+
+      if (surveyError || !surveyData) {
+        throw new Error('Survey responses not found')
+      }
+
+      // Update payment status
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ payment_status: 'paid' })
+        .eq('id', userData.id)
+
+      if (updateError) throw updateError
+
+      // Generate assets
+      try {
+        console.log('Starting asset generation for user:', userData.id)
+        console.log('Survey data:', JSON.stringify(surveyData, null, 2))
+        await generateProjectAssets(userData.id, surveyData)
+        console.log('Asset generation completed successfully')
+      } catch (error) {
+        console.error('Asset generation failed:', error)
+        console.error('Error stack:', error.stack)
+        throw error
+      }
     }
 
-    const userId = userData.id
-
-    // Trigger AI processing
-    // You can use a background job or serverless function here
-
-    // For example:
-    await triggerAIProcessing(userId)
+    return NextResponse.json({ received: true })
+  } catch (error: any) {
+    console.error('Webhook error:', error)
+    return NextResponse.json(
+      { error: `Webhook Error: ${error.message}` },
+      { status: 400 }
+    )
   }
-
-  return NextResponse.json({ received: true })
 }

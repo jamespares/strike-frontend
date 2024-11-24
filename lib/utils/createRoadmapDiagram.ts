@@ -1,5 +1,5 @@
 // utils/createRoadmapDiagram.ts
-import { supabase } from '../lib/supabaseClient'
+import { supabase } from '@/lib/clients/supabaseClient'
 import mermaid from 'mermaid'
 
 export const createRoadmapDiagram = async (userId: string, tasks: any[]) => {

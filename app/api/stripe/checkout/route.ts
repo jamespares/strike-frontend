@@ -1,9 +1,5 @@
 import { NextResponse } from 'next/server'
-import Stripe from 'stripe'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2024-10-28.acacia',
-})
+import { stripe } from '@/lib/clients/stripeClient'
 
 export async function POST(request: Request) {
   const { email } = await request.json()
@@ -14,17 +10,21 @@ export async function POST(request: Request) {
       customer_email: email,
       line_items: [
         {
-          price: 'your-price-id', // Replace with your actual price ID
+          price: 'price_1QOjBsGrklpW0Vx9k4gigQKU', // Replace the product ID with the price ID
           quantity: 1,
         },
       ],
       mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard`,
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment`,
+      metadata: {
+        userEmail: email
+      }
     })
 
     return NextResponse.json({ sessionId: session.id })
   } catch (error: any) {
+    console.error('Stripe error:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

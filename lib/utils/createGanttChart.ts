@@ -1,4 +1,7 @@
 import OpenAI from 'openai'
+import { supabase } from '@/lib/clients/supabaseClient'
+import { google } from 'googleapis'
+import { createGoogleSheets } from './createGoogleSheets'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -6,13 +9,11 @@ const openai = new OpenAI({
 
 export const createGanttChart = async (userId: string, tasks: any[], surveyData: any) => {
   try {
-    // Generate Google Apps Script using AI
     const prompt = `Create a Google Apps Script that will build a professional Gantt chart spreadsheet.
-
+    
     Project Context:
     - Project Goals: ${surveyData.key_goals}
     - Deadline: ${surveyData.deadline}
-    - Team Size: ${surveyData.team_size} people
     - Budget: ${surveyData.budget}
     - Key Risks: ${surveyData.key_risks}
     
@@ -39,16 +40,16 @@ export const createGanttChart = async (userId: string, tasks: any[], surveyData:
     Include clear function names and comments.`
 
     const response = await openai.chat.completions.create({
-      model: 'o1-mini',
+      model: 'gpt-4o', // Use a more capable model if needed
       messages: [
         {
           role: 'system',
-          content: 'You are an expert in Google Apps Script and project management. Output only valid JavaScript code.'
+          content: 'You are an expert in Google Apps Script and project management. Output only valid JavaScript code.',
         },
         {
           role: 'user',
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
       temperature: 0.7,
     })
@@ -56,24 +57,13 @@ export const createGanttChart = async (userId: string, tasks: any[], surveyData:
     const script = response.choices[0].message.content
 
     // Create spreadsheet with script
-    const sheetResponse = await fetch('/api/google-sheets/create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        userId, 
-        sheetType: 'gantt',
-        script,
-        data: {
-          tasks,
-          deadline: surveyData.deadline,
-          teamSize: surveyData.team_size,
-          budget: surveyData.budget
-        }
-      })
+    const spreadsheetUrl = await createGoogleSheets(userId, {
+      sheetType: 'gantt',
+      script,
+      tasks,
+      surveyData,
     })
 
-    if (!sheetResponse.ok) throw new Error('Failed to create Gantt chart')
-    const { spreadsheetUrl } = await sheetResponse.json()
     return spreadsheetUrl
   } catch (error) {
     console.error('Error creating Gantt chart:', error)

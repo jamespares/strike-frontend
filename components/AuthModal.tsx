@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { signInWithGoogle } from '../utils/auth'
-import { supabase } from '../lib/supabaseClient'
+import { signInWithGoogle } from '@/lib/auth/auth'
+import { supabase } from '@/lib/clients/supabaseClient'
 
 interface AuthModalProps {
   onClose: () => void

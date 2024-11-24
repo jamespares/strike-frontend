@@ -1,16 +1,18 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useUser } from '../../context/UserContext'
+import { useUser } from '@/context/UserContext'
 import { useRouter } from 'next/navigation'
-import { supabase } from '../../lib/supabaseClient'
-import { signOut } from '../../utils/auth'
+import { supabase } from '@/lib/clients/supabaseClient'
+import { signOut } from '@/lib/auth/auth'
+import { ProjectDownloads } from '@/components/ProjectDownloads'
 
 interface UserAssets {
   diagram_url: string
   gantt_chart_url: string
   budget_tracker_url: string
   risk_log_url: string
+  gantt_csv_url: string
 }
 
 export default function Dashboard() {
@@ -18,6 +20,7 @@ export default function Dashboard() {
   const router = useRouter()
   const [assets, setAssets] = useState<UserAssets | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!session) {
@@ -29,19 +32,38 @@ export default function Dashboard() {
 
   const fetchAssets = async () => {
     try {
-      const { data, error } = await supabase
-        .from('user_assets')
-        .select('diagram_url, gantt_chart_url, budget_tracker_url, risk_log_url')
-        .eq('user_id', session?.user.id)
-        .single()
+      setLoading(true)
+      setError(null)
+      
+      // Poll every 2 seconds for up to 30 seconds
+      for (let i = 0; i < 15; i++) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('payment_status')
+          .eq('id', session?.user.id)
+          .single()
 
-      if (error) {
-        console.error('Error fetching assets:', error.message)
-      } else {
-        setAssets(data as UserAssets)
+        if (userData?.payment_status === 'paid') {
+          const { data, error } = await supabase
+            .from('user_assets')
+            .select('*')
+            .eq('user_id', session?.user.id)
+            .single()
+
+          if (data) {
+            setAssets(data)
+            setLoading(false)
+            return
+          }
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 2000))
       }
-    } catch (err) {
-      console.error('Unexpected error:', err)
+      
+      throw new Error('Timed out waiting for assets')
+    } catch (err: any) {
+      setError(err.message)
+      console.error('Error fetching assets:', err)
     } finally {
       setLoading(false)
     }
@@ -105,6 +127,10 @@ export default function Dashboard() {
                 </a>
               </li>
             </ul>
+            <ProjectDownloads 
+              ganttChartUrl={assets.gantt_chart_url}
+              ganttCsvUrl={assets.gantt_csv_url}
+            />
           </div>
         ) : (
           <p className="text-xl text-amber-100/90">Your tools are being prepared. Check your email for updates.</p>

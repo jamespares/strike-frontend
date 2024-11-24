@@ -1,7 +1,6 @@
 // utils/aiProcessing.ts
-import { supabase } from '../lib/supabaseClient'
-import { generateProjectAssets } from './generateAssets'
-import { sendEmail } from './emailService'
+import { supabase } from '@/lib/clients/supabaseClient'
+import { generateProjectAssets } from './generateProjectPlan'
 
 export const triggerAIProcessing = async (userId: string) => {
   // Fetch survey responses

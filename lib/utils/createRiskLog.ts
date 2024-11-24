@@ -1,5 +1,6 @@
-import OpenAI from 'openai'
-import { supabase } from '../lib/supabaseClient'
+// utils/createGoogleSheets.ts
+import { google } from 'googleapis'
+import { supabase } from '@/lib/clients/supabaseClient' 
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -54,7 +55,7 @@ export const createRiskLog = async (userId: string, risks: any[], surveyData: an
     Include clear function names and comments.`
 
     const response = await openai.chat.completions.create({
-      model: 'o1-mini',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',
