@@ -1,34 +1,32 @@
 import ExcelJS from 'exceljs'
 import { supabase } from '@/lib/clients/supabaseClient'
 
-export const generateGanttChart = async (userId: string, tasks: any[], surveyData: any): Promise<string> => {
+export const generateBudgetTracker = async (userId: string, projectPlan: any, surveyData: any): Promise<string> => {
   try {
     const workbook = new ExcelJS.Workbook()
-    const worksheet = workbook.addWorksheet('Gantt Chart')
+    const worksheet = workbook.addWorksheet('Budget Tracker')
 
     // Define columns
     worksheet.columns = [
-      { header: 'Task', key: 'task', width: 30 },
-      { header: 'Start Date', key: 'start', width: 15 },
-      { header: 'End Date', key: 'end', width: 15 },
-      { header: 'Duration', key: 'duration', width: 10 },
+      { header: 'Category', key: 'category', width: 30 },
+      { header: 'Amount', key: 'amount', width: 15 },
+      { header: 'Status', key: 'status', width: 15 },
     ]
 
-    // Add tasks
-    tasks.forEach(task => {
+    // Add budget items
+    projectPlan.budget.forEach(item => {
       worksheet.addRow({
-        task: task.name,
-        start: task.startDate,
-        end: task.endDate,
-        duration: task.duration
+        category: item.category,
+        amount: item.amount,
+        status: item.status
       })
     })
 
     // Generate buffer
     const buffer = await workbook.xlsx.writeBuffer()
 
-    // Upload to Supabase Storage under 'gantt' folder
-    const fileName = `gantt/gantt-${userId}-${Date.now()}.xlsx`
+    // Upload to Supabase Storage under 'budget' folder
+    const fileName = `budget/budget-${userId}-${Date.now()}.xlsx`
     const { data, error } = await supabase.storage
       .from('project-tools')
       .upload(fileName, buffer, {
@@ -47,11 +45,11 @@ export const generateGanttChart = async (userId: string, tasks: any[], surveyDat
 
     return publicUrl.publicUrl
   } catch (error) {
-    console.error('Error creating Gantt Chart:', error)
+    console.error('Error creating Budget Tracker:', error)
     throw error
   }
 }
 
-export const generateGanttCSV = async (tasks: any[]) => {
+export const generateBudgetCSV = async (projectPlan: any) => {
   // Your existing implementation
 } 

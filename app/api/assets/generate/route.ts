@@ -1,68 +1,36 @@
 // app/api/assets/generate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/clients/supabaseClient';
-import { generateGanttChart, generateGanttCSV } from './gantt';
-import { generateBudgetTracker, generateBudgetCSV } from './budget';
-import { generateRiskLog, generateRiskCSV } from './risk';
-import { generateRoadmap } from './roadmap';
+import { generateGanttChart, generateGanttCSV } from '@/lib/utils/createGanttChart';
+import { generateBudgetTracker, generateBudgetCSV } from '@/lib/utils/createBudgetTracker';
+import { generateRiskLog, generateRiskCSV } from '@/lib/utils/createRiskLog';
+import { generateRoadmapDiagram } from '@/lib/utils/createRoadmapDiagram';
+import { generateProjectAssets } from '@/lib/utils/generateProjectPlan';
+import * as Sentry from '@sentry/nextjs';
 
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await request.json();
 
-    // Fetch project plan
-    const { data: projectPlan, error: planError } = await supabase
-      .from('project_plans')
-      .select('plan')
+    // Fetch survey responses
+    const { data: surveyData, error: surveyError } = await supabase
+      .from('survey_responses')
+      .select('*')
       .eq('user_id', userId)
       .single();
 
-    if (planError) throw planError;
+    if (surveyError || !surveyData) {
+      throw new Error('Survey responses not found');
+    }
 
-    // Generate all assets and CSVs in parallel
-    const [
-      ganttChart, ganttCSV,
-      budgetTracker, budgetCSV,
-      riskLog, riskCSV,
-      roadmap
-    ] = await Promise.all([
-      generateGanttChart(projectPlan.plan),
-      generateGanttCSV(projectPlan.plan),
-      generateBudgetTracker(projectPlan.plan),
-      generateBudgetCSV(projectPlan.plan),
-      generateRiskLog(projectPlan.plan),
-      generateRiskCSV(projectPlan.plan),
-      generateRoadmap(projectPlan.plan)
-    ]);
+    // Generate assets
+    const assets = await generateProjectAssets(userId, surveyData);
 
-    // Store URLs in Supabase
-    const { error: assetError } = await supabase
-      .from('user_assets')
-      .upsert({
-        user_id: userId,
-        gantt_chart_url: ganttChart,
-        gantt_csv_url: ganttCSV,
-        budget_tracker_url: budgetTracker,
-        budget_csv_url: budgetCSV,
-        risk_log_url: riskLog,
-        risk_csv_url: riskCSV,
-        roadmap_url: roadmap
-      }, { onConflict: 'user_id' });
-
-    if (assetError) throw assetError;
-
-    return NextResponse.json({
-      ganttChart,
-      ganttCSV,
-      budgetTracker,
-      budgetCSV,
-      riskLog,
-      riskCSV,
-      roadmap
-    });
+    return NextResponse.json(assets);
   } catch (error: any) {
+    Sentry.captureException(error);
+    console.error('Asset generation API error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// Asset generation functions here...

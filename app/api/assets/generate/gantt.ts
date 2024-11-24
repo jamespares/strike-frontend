@@ -98,10 +98,10 @@ export async function generateGanttCSV(projectPlan: ProjectPlan): Promise<string
   const parser = new Parser();
   const csv = parser.parse(csvData);
 
-  // Upload to Supabase Storage
-  const fileName = `gantt-${Date.now()}.csv`;
+  // Upload to Supabase Storage under 'gantt' folder
+  const fileName = `gantt/gantt-${Date.now()}.csv`;
   const { data, error } = await supabase.storage
-    .from('charts')
+    .from('project-tools')
     .upload(fileName, csv, {
       contentType: 'text/csv',
       upsert: true
@@ -110,9 +110,11 @@ export async function generateGanttCSV(projectPlan: ProjectPlan): Promise<string
   if (error) throw error;
 
   // Get public URL
-  const { data: publicUrl } = supabase.storage
-    .from('charts')
+  const { data: publicUrl, error: urlError } = supabase.storage
+    .from('project-tools')
     .getPublicUrl(fileName);
+
+  if (urlError) throw urlError;
 
   return publicUrl.publicUrl;
 } 
