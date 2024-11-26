@@ -1,30 +1,24 @@
 'use client'
 
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useUser } from '../context/UserContext'
-import AuthModal from '../components/AuthModal'
+import { useEffect } from 'react'
+import { useUser } from '@/context/UserContext'
 
 export default function Home() {
   const router = useRouter()
   const { session, mounted } = useUser()
-  const [showAuthModal, setShowAuthModal] = useState(false)
 
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-[#1a1f2e] text-white p-8">
-        <div className="max-w-3xl mx-auto bg-[#232a3b] rounded-2xl shadow-2xl p-10">
-          <p className="text-xl">The journey begins...</p>
-        </div>
-      </div>
-    )
-  }
+  useEffect(() => {
+    if (mounted && !session) {
+      router.push('/login')
+    }
+  }, [mounted, session, router])
 
   const handleBeginQuest = () => {
     if (session) {
       router.push('/survey/1')
     } else {
-      setShowAuthModal(true)
+      router.push('/login')
     }
   }
 
@@ -42,26 +36,22 @@ export default function Home() {
         </p>
         <ul className="mb-12 space-y-4 text-lg">
           <li className="flex items-center">
-            <span className="mr-3 text-amber-500">⚔️</span> 
+            <span className="mr-3 text-amber-500" aria-label="Road Map Icon">⚔️</span> 
             <span className="text-amber-100">A custom road map</span>
           </li>
           <li className="flex items-center">
-            <span className="mr-3 text-amber-500">📜</span> 
-            <span className="text-amber-100">A spreadsheet with all your tasks and a clear timeline to get them done</span>
+            <span className="mr-3 text-amber-500" aria-label="Spreadsheet Icon">📜</span> 
+            <span className="text-amber-100">A timeline with all your tasks</span>
           </li>
           <li className="flex items-center">
-            <span className="mr-3 text-amber-500">💰</span> 
-            <span className="text-amber-100">A budget tracker to manage your costs and ensure you're profitable</span>
+            <span className="mr-3 text-amber-500" aria-label="Budget Tracker Icon">💰</span> 
+            <span className="text-amber-100">A budget tracker for profitability</span>
           </li>
           <li className="flex items-center">
-            <span className="mr-3 text-amber-500">🛡️</span> 
-            <span className="text-amber-100">A risk log with clear strategies to tackle challenges</span>
+            <span className="mr-3 text-amber-500" aria-label="Risk Log Icon">🛡️</span> 
+            <span className="text-amber-100">A risk log with strategies</span>
           </li>
         </ul>
-        <p className="text-lg mb-8 text-amber-100/90 text-center">
-          All fully downloadable and customisable.
-          <br />
-        </p>
         <div className="text-center">
           <button 
             onClick={handleBeginQuest}
@@ -77,8 +67,6 @@ export default function Home() {
           </button>
         </div>
       </div>
-
-      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
     </div>
   )
 }

@@ -58,13 +58,33 @@ export default function Dashboard() {
     setError(null)
 
     try {
-      console.log('Generating project plan for user:', session.user.id)
+      // Verify current session before making API call
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
+      console.log('Current session check:', {
+        hasSession: !!currentSession,
+        error: sessionError?.message,
+        accessToken: currentSession?.access_token ? 'Present' : 'Missing'
+      })
+
+      if (!currentSession?.access_token) {
+        throw new Error('No valid session')
+      }
+
       const response = await fetch('/api/project-plan/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentSession.access_token}`,
         },
+        credentials: 'include', // Important for cookies
         body: JSON.stringify({ userId: session.user.id }),
+      })
+
+      // Log response status and headers
+      console.log('API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
       })
 
       if (!response.ok) {
@@ -73,7 +93,6 @@ export default function Dashboard() {
       }
 
       const data = await response.json()
-      console.log('Project plan generated:', data)
       setProjectPlan(data.plan)
     } catch (err) {
       console.error('Error generating project plan:', err)
