@@ -1,85 +1,38 @@
 import { NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { supabase } from '@/lib/clients/supabaseClient'
-import { SurveyData, ProjectPlan } from '@/lib/types/survey'
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+import { generateProjectPlan } from '@/lib/utils/generateProjectPlan'
+import { SurveyData } from '@/lib/types/survey'
 
 export async function POST(request: Request) {
   try {
-    const { userId, surveyData }: { userId: string; surveyData: SurveyData } = await request.json()
+    const { userId } = await request.json()
+    console.log('Attempting to generate plan for user:', userId)
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a project planning assistant that outputs JSON in the following format:
-          {
-            "tasks": [
-              {
-                "id": "string",
-                "title": "string",
-                "description": "string",
-                "startDate": "YYYY-MM-DD",
-                "endDate": "YYYY-MM-DD",
-                "dependencies": ["taskId"],
-                "assignedTo": ["string"],
-                "estimatedCost": number
-              }
-            ],
-            "risks": [
-              {
-                "id": "string",
-                "description": "string",
-                "impact": "LOW" | "MEDIUM" | "HIGH",
-                "probability": "LOW" | "MEDIUM" | "HIGH",
-                "mitigation": "string",
-                "contingency": "string"
-              }
-            ],
-            "timeline": {
-              "startDate": "YYYY-MM-DD",
-              "endDate": "YYYY-MM-DD",
-              "milestones": [
-                {
-                  "date": "YYYY-MM-DD",
-                  "description": "string"
-                }
-              ]
-            },
-            "budget": {
-              "total": number,
-              "breakdown": {
-                "category": number
-              },
-              "contingency": number
-            }
-          }`
-        },
-        {
-          role: 'user',
-          content: `Create a comprehensive project plan for a solo developer:
-          
-          Project Goals: ${surveyData.key_goals}
-          Key Risks: ${surveyData.key_risks}
-          Deadline: ${surveyData.deadline}
-          Budget: ${surveyData.budget}
+    // Fetch survey responses
+    const { data: surveyData, error: surveyError } = await supabase
+      .from('survey_responses')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
 
-          Consider:
-          1. How the goals affect task breakdown and timeline
-          2. How risks might impact the budget and schedule
-          3. Realistic timelines for a solo developer
-          
-          Provide a detailed breakdown in the specified JSON format.`
-        }
-      ],
-      temperature: 0.7,
+    console.log('Survey query result:', {
+      data: surveyData,
+      error: surveyError
     })
 
-    const projectPlan: ProjectPlan = JSON.parse(response.choices[0].message.content)
+    if (surveyError || !surveyData) {
+      throw new Error('Survey responses not found')
+    }
+
+    // Validate survey data has required fields
+    if (!surveyData.key_goals || !surveyData.key_risks || 
+        !surveyData.deadline || !surveyData.budget) {
+      throw new Error('Incomplete survey responses')
+    }
+
+    // Generate project plan
+    const projectPlan = await generateProjectPlan(surveyData as SurveyData)
+    console.log('Generated plan:', projectPlan)
 
     // Store in Supabase
     const { error } = await supabase
@@ -93,6 +46,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, plan: projectPlan })
   } catch (error: any) {
+    console.error('Project plan generation error:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 } 

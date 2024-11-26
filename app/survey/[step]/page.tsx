@@ -49,14 +49,24 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
         return
       }
 
+      // First get existing responses
+      const { data: existingData } = await supabase
+        .from('survey_responses')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .single()
+
+      // Merge existing data with new response
+      const updatedData = {
+        ...existingData,
+        user_id: session.user.id,
+        updated_at: new Date().toISOString(),
+        [question.fieldName]: data.answer
+      }
+
       const { error } = await supabase
         .from('survey_responses')
-        .upsert({
-          user_id: session.user.id,
-          ...{
-            [question.fieldName]: data.answer
-          }
-        }, {
+        .upsert(updatedData, {
           onConflict: 'user_id'
         })
 

@@ -11,7 +11,7 @@ const schema = yup.object().shape({
 export async function POST(request: Request) {
   try {
     const { userId, input } = await request.json()
-    console.log('Received data:', { userId, input })
+    console.log('Received survey data:', { userId, input })
 
     await schema.validate({ userId, input })
     console.log('Validation passed')
@@ -19,21 +19,31 @@ export async function POST(request: Request) {
     // Get authenticated Supabase client
     const supabase = createRouteHandlerClient({ cookies })
 
+    // First check if we can query the table
+    const { data: checkTable, error: tableError } = await supabase
+      .from('survey_responses')
+      .select('*')
+      .limit(1)
+
+    console.log('Table check:', { checkTable, tableError })
+
     const { data, error } = await supabase
       .from('survey_responses')
       .upsert({
         user_id: userId,
-        ...input
+        ...input,
+        updated_at: new Date().toISOString()
       }, {
         onConflict: 'user_id'
       })
+
+    console.log('Upsert result:', { data, error })
 
     if (error) {
       console.error('Supabase error:', error)
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    console.log('Data saved successfully')
     return NextResponse.json({ data }, { status: 200 })
   } catch (error: any) {
     console.error('API route error:', error)
