@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useUser } from '@/context/UserContext'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/clients/supabaseClient'
+import { ProjectPlanDisplay } from '@/components/ProjectPlanDisplay'
 
 export default function Dashboard() {
   const { user, session } = useUser()
@@ -15,9 +16,8 @@ export default function Dashboard() {
   useEffect(() => {
     if (!session?.user?.id) return
 
-    const fetchUserData = async () => {
+    const checkPaymentStatus = async () => {
       try {
-        // Check payment status
         const { data: userData, error: userError } = await supabase
           .from('users')
           .select('payment_status')
@@ -30,25 +30,13 @@ export default function Dashboard() {
           router.push('/payment')
           return
         }
-
-        // Check if project plan exists
-        const { data: existingPlan, error: planError } = await supabase
-          .from('project_plans')
-          .select('plan')
-          .eq('user_id', session.user.id)
-          .single()
-
-        if (planError && planError.code !== 'PGRST116') throw planError
-        if (existingPlan) {
-          setProjectPlan(existingPlan.plan)
-        }
       } catch (err) {
-        console.error('Error fetching user data:', err)
+        console.error('Error checking payment status:', err)
         setError(err.message)
       }
     }
 
-    fetchUserData()
+    checkPaymentStatus()
   }, [session, router])
 
   const handleGenerateProjectPlan = async () => {
@@ -117,14 +105,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {projectPlan && (
-          <div className="bg-[#232a3b] rounded-xl p-8">
-            <h2 className="text-2xl mb-6">Your Project Plan</h2>
-            <pre className="bg-[#1a1f2e] p-4 rounded-lg overflow-auto">
-              {JSON.stringify(projectPlan, null, 2)}
-            </pre>
-          </div>
-        )}
+        {projectPlan && <ProjectPlanDisplay plan={projectPlan} />}
       </div>
     </div>
   )
