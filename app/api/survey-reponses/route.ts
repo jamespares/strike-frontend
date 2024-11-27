@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { createClient } from '@/lib/supabase'
 import * as yup from 'yup'
 
 const schema = yup.object().shape({
@@ -16,9 +15,8 @@ export async function POST(request: Request) {
     await schema.validate({ userId, input })
     console.log('Validation passed')
 
-    // Get authenticated Supabase client
-    const supabase = createRouteHandlerClient({ cookies })
-
+    const supabase = authService.getSupabaseClient()
+    
     // First check if we can query the table
     const { data: checkTable, error: tableError } = await supabase
       .from('survey_responses')

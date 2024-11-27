@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/clients/supabaseClient'
 
 export default function Dashboard() {
-  const { session } = useUser()
+  const { user, session } = useUser()
   const router = useRouter()
   const [isGenerating, setIsGenerating] = useState(false)
   const [projectPlan, setProjectPlan] = useState(null)
@@ -52,47 +52,26 @@ export default function Dashboard() {
   }, [session, router])
 
   const handleGenerateProjectPlan = async () => {
-    if (!session?.user?.id) return
+    if (!user?.id) return
 
     setIsGenerating(true)
     setError(null)
 
     try {
-      // Verify current session before making API call
-      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
-      console.log('Current session check:', {
-        hasSession: !!currentSession,
-        error: sessionError?.message,
-        accessToken: currentSession?.access_token ? 'Present' : 'Missing'
-      })
-
-      if (!currentSession?.access_token) {
-        throw new Error('No valid session')
-      }
-
       const response = await fetch('/api/project-plan/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${currentSession.access_token}`,
         },
-        credentials: 'include', // Important for cookies
-        body: JSON.stringify({ userId: session.user.id }),
+        credentials: 'include',
       })
-
-      // Log response status and headers
-      console.log('API Response:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries())
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to generate project plan')
-      }
 
       const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error + (data.details ? ` (${data.details})` : ''))
+      }
+
       setProjectPlan(data.plan)
     } catch (err) {
       console.error('Error generating project plan:', err)

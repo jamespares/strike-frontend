@@ -1,14 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { signInWithGoogle } from '@/lib/auth/auth'
-import { supabase } from '@/lib/clients/supabaseClient'
+import { useUser } from '@/context/UserContext'
 
 interface AuthModalProps {
   onClose: () => void
 }
 
 export default function AuthModal({ onClose }: AuthModalProps) {
+  const { signIn, signUp, signInWithGoogle } = useUser()
   const [isSignUp, setIsSignUp] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -19,20 +19,11 @@ export default function AuthModal({ onClose }: AuthModalProps) {
     setError('')
     
     try {
-      const { error: authError } = isSignUp 
-        ? await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              emailRedirectTo: `${window.location.origin}/`
-            }
-          })
-        : await supabase.auth.signInWithPassword({
-            email,
-            password,
-          })
-
-      if (authError) throw authError
+      if (isSignUp) {
+        await signUp(email, password)
+      } else {
+        await signIn(email, password)
+      }
       onClose()
     } catch (err: any) {
       setError(err.message)

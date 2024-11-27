@@ -1,82 +1,88 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react'
-import { Session } from '@supabase/supabase-js'
+import { User, Session } from '@supabase/supabase-js'
+import { supabase } from '@/lib/clients/supabaseClient'
 
-interface UserContextType {
+export const UserContext = createContext<{
+  user: User | null
   session: Session | null
-  mounted: boolean
-  refreshSession: () => Promise<void>
-}
+  signIn: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string) => Promise<void>
+  signOut: () => Promise<void>
+  signInWithGoogle: () => Promise<void>
+}>({} as any)
 
-const UserContext = createContext<UserContextType | undefined>(undefined)
-
-export function UserContextProvider({ children }: { children: ReactNode }) {
-  const session = useSession()
-  const supabase = useSupabaseClient()
-  const [mounted, setMounted] = useState(false)
+export function UserContextProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const router = useRouter()
 
-  const refreshSession = async () => {
-    try {
-      const { data: { session: newSession }, error } = await supabase.auth.refreshSession()
-      console.log('Session refresh:', {
-        success: !!newSession,
-        error: error?.message,
-        timestamp: new Date().toISOString()
-      })
-      if (error) throw error
-    } catch (err) {
-      console.error('Session refresh failed:', err)
-      router.push('/login')
-    }
+  useEffect(() => {
+    // Get initial user and session
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user)
+    })
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+    })
+
+    // Listen for changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session)
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) throw error
   }
 
-  useEffect(() => {
-    const validateAuth = async () => {
-      console.group('🔑 Auth Validation')
-      try {
-        if (mounted && !session && window.location.pathname !== '/login') {
-          console.log('Redirecting to login - No session found')
-          router.push('/login')
-          return
-        }
-
-        if (session) {
-          console.log('Session State:', {
-            exists: true,
-            user: {
-              id: session.user.id,
-              email: session.user.email,
-              lastSignIn: session.user.last_sign_in_at
-            },
-            expiresAt: session.expires_at ? new Date(session.expires_at * 1000).toISOString() : null
-          })
-        }
-      } catch (err) {
-        console.error('Auth Validation Error:', err)
-      } finally {
-        setMounted(true)
+  const signUp = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/`
       }
-      console.groupEnd()
-    }
+    })
+    if (error) throw error
+  }
 
-    validateAuth()
-  }, [session, router, mounted])
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut()
+    if (error) throw error
+    router.push('/login')
+  }
+
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/`
+      }
+    })
+    if (error) throw error
+  }
 
   return (
-    <UserContext.Provider value={{ session, mounted, refreshSession }}>
+    <UserContext.Provider value={{
+      user,
+      session,
+      signIn,
+      signUp,
+      signOut,
+      signInWithGoogle
+    }}>
       {children}
     </UserContext.Provider>
   )
 }
 
-export function useUser() {
-  const context = useContext(UserContext)
-  if (context === undefined) {
-    throw new Error('useUser must be used within a UserContextProvider')
-  }
-  return context
-}
+export const useUser = () => useContext(UserContext)
