@@ -130,7 +130,7 @@ export default function Dashboard() {
             onRoadmapGenerated={(roadmapData) => setRoadmap(roadmapData)} 
           />
         )}
-        {roadmap && <RoadmapDisplay mermaidDefinition={roadmap} />}
+        {roadmap && <RoadmapDisplay projectPlan={projectPlan} />}
       </div>
     </div>
   )
