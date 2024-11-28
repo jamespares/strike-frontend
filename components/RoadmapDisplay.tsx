@@ -14,8 +14,6 @@ export function RoadmapDisplay({ mermaidDefinition }: RoadmapDisplayProps) {
   useEffect(() => {
     const initializeMermaid = async () => {
       try {
-        console.log('Mermaid Definition:', mermaidDefinition)
-
         await mermaid.initialize({
           startOnLoad: false,
           theme: 'base',
@@ -28,7 +26,8 @@ export function RoadmapDisplay({ mermaidDefinition }: RoadmapDisplayProps) {
             height: 400,
             defaultRenderer: 'dagre',
             htmlLabels: true,
-            useMaxWidth: false
+            useMaxWidth: false,
+            diagramPadding: 8
           },
           themeVariables: {
             primaryColor: '#fef3c7',
@@ -48,25 +47,30 @@ export function RoadmapDisplay({ mermaidDefinition }: RoadmapDisplayProps) {
             edgeLabelBackground: '#fef3c7',
             fillColor: '#fef3c7'
           },
+          themeCSS: `
+            .node rect { 
+              stroke-width: 2px !important;
+              rx: 6;
+              ry: 6;
+              stroke-dasharray: 5 !important;
+            }
+            .edgePath path {
+              stroke-width: 2px !important;
+              stroke-dasharray: 5 !important;
+            }
+            .edgePath marker {
+              stroke-dasharray: 0 !important;
+            }
+            .label {
+              font-family: 'Comic Sans MS', cursive !important;
+            }
+          `,
           securityLevel: 'loose'
         })
 
         if (roadmapRef.current && mermaidDefinition) {
-          try {
-            const { svg } = await mermaid.render('roadmap-diagram', mermaidDefinition)
-            console.log('Generated SVG:', svg)
-            roadmapRef.current.innerHTML = svg
-            
-            const svgElement = roadmapRef.current.querySelector('svg')
-            if (svgElement) {
-              svgElement.style.width = '100%'
-              svgElement.style.height = 'auto'
-              svgElement.style.minHeight = '400px'
-              svgElement.style.backgroundColor = '#f8fafc'
-            }
-          } catch (renderError) {
-            console.error('Mermaid render error:', renderError)
-          }
+          const { svg } = await mermaid.render('roadmap-diagram', mermaidDefinition)
+          roadmapRef.current.innerHTML = svg
         }
       } catch (error) {
         console.error('Error initializing mermaid:', error)
@@ -141,19 +145,16 @@ export function RoadmapDisplay({ mermaidDefinition }: RoadmapDisplayProps) {
   }
 
   return (
-    <div className="bg-slate-50 rounded-xl p-8 shadow-lg">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl text-gray-800">Project Roadmap</h2>
-        <button
-          onClick={handleDownloadPDF}
-          disabled={isGeneratingPDF}
-          className="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded-lg 
-                   text-white text-sm font-medium transition disabled:opacity-50"
-        >
-          {isGeneratingPDF ? 'Generating PDF...' : 'Download PDF'}
-        </button>
-      </div>
-      <div ref={roadmapRef} className="overflow-x-auto min-h-[400px] bg-slate-50" />
+    <div className="bg-[#232a3b] rounded-xl p-8">
+      <div ref={roadmapRef} className="mb-6 overflow-x-auto" />
+      <button
+        onClick={handleDownloadPDF}
+        disabled={isGeneratingPDF}
+        className="w-full px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded-lg 
+                 text-white text-sm font-medium transition disabled:opacity-50"
+      >
+        {isGeneratingPDF ? 'Generating PDF...' : 'Download Roadmap PDF'}
+      </button>
     </div>
   )
 } 

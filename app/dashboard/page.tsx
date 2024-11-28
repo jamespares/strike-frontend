@@ -13,7 +13,7 @@ import { RoadmapGenerateButton } from '@/components/RoadmapGenerateButton'
 export default function Dashboard() {
   const { user, session } = useUser()
   const router = useRouter()
-  const [generationStatus, setGenerationStatus] = useState(AssetGenerationStatus.NOT_STARTED)
+  const [generationStatus, setGenerationStatus] = useState<AssetGenerationStatus>(AssetGenerationStatus.NOT_STARTED)
   const [projectPlan, setProjectPlan] = useState(null)
   const [roadmap, setRoadmap] = useState(null)
   const [error, setError] = useState(null)
