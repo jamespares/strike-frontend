@@ -10,6 +10,8 @@ export interface ProjectPlan {
   risks: ProjectRisk[];
   timeline: Timeline;
   budget: BudgetBreakdown;
+  revenue: RevenuePrediction;
+  scaling: ScalingPlan;
 }
 
 interface ProjectTask {
@@ -45,6 +47,53 @@ interface BudgetBreakdown {
   total: number;
   breakdown: Record<string, number>;
   contingency: number;
+}
+
+interface RevenuePrediction {
+  yearlyPredictions: Array<{
+    year: number;
+    revenue: number;
+    costs: number;
+    profit: number;
+    assumptions: Array<{
+      category: string;
+      description: string;
+      impact: number;
+    }>;
+  }>;
+  marketAnalysis: {
+    averageCompetitorPricing: number;
+    marketSize: string;
+    targetMarketShare: number;
+    keyMetrics: Array<{
+      name: string;
+      value: string;
+      description: string;
+    }>;
+  };
+}
+
+interface ScalingPlan {
+  phases: Array<{
+    name: string;
+    trigger: string;
+    recommendations: Array<{
+      category: 'TEAM' | 'TECH' | 'MARKETING' | 'OPERATIONS';
+      action: string;
+      timing: string;
+      estimatedCost: number;
+      expectedImpact: string;
+    }>;
+    keyMetrics: Array<{
+      metric: string;
+      target: string;
+    }>;
+  }>;
+  industryBenchmarks: Array<{
+    metric: string;
+    benchmark: string;
+    source: string;
+  }>;
 }
 
 // Add other necessary interfaces... 

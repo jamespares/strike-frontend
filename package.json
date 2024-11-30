@@ -18,6 +18,7 @@
     "@supabase/supabase-js": "^2.46.1",
     "clsx": "^2.1.1",
     "exceljs": "^4.3.0",
+    "google-auth-library": "^9.15.0",
     "googleapis": "^144.0.0",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.460.0",
@@ -33,6 +34,7 @@
     "reactflow": "^11.11.4",
     "stripe": "^17.3.1",
     "tailwind-merge": "^2.5.4",
+    "xlsx": "^0.18.5",
     "yup": "^1.4.0"
   },
   "devDependencies": {

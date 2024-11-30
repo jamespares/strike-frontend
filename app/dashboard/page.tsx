@@ -8,6 +8,7 @@ import { ProjectPlanDisplay } from '@/components/ProjectPlanDisplay'
 import { RoadmapDisplay } from '@/components/RoadmapDisplay'
 import { ProgressBar } from '@/components/ProgressBar'
 import { AssetGenerationStatus } from '@/lib/types/assets'
+import { GanttDownloadButton } from '@/components/GanttDownloadButton'
 
 export default function Dashboard() {
   const { user } = useUser()
@@ -15,6 +16,7 @@ export default function Dashboard() {
   const [generationStatus, setGenerationStatus] = useState(AssetGenerationStatus.NOT_STARTED)
   const [projectPlan, setProjectPlan] = useState(null)
   const [roadmap, setRoadmap] = useState(null)
+  const [ganttUrl, setGanttUrl] = useState<string | null>(null)
 
   const handleGenerateAssets = async () => {
     if (!user?.id) return
@@ -107,6 +109,7 @@ export default function Dashboard() {
 
         {projectPlan && <ProjectPlanDisplay plan={projectPlan} />}
         {roadmap && <RoadmapDisplay projectPlan={projectPlan} />}
+        {user?.id && projectPlan && <GanttDownloadButton userId={user.id} />}
       </div>
     </div>
   )

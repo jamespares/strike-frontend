@@ -54,7 +54,36 @@ ${task.title}
       .join('\n')
   }
 
-  return `Project Overview
+  const formatRevenuePredictions = () => {
+    if (!plan.revenue?.yearlyPredictions?.length) return '\nNo revenue predictions available.'
+    
+    return plan.revenue.yearlyPredictions.map(year => `
+Year ${year.year}
+• Revenue: ${formatCurrency(year.revenue)}
+• Costs: ${formatCurrency(year.costs)}
+• Profit: ${formatCurrency(year.profit)}
+• Key Assumptions:
+${year.assumptions.map(a => `  - ${a.category}: ${a.description} (Impact: ${formatCurrency(a.impact)})`).join('\n')}`
+    ).join('\n\n')
+  }
+
+  const formatScalingPlan = () => {
+    if (!plan.scaling?.phases?.length) return '\nNo scaling plan available.'
+    
+    return plan.scaling.phases.map(phase => `
+${phase.name}
+• Trigger: ${phase.trigger}
+• Recommendations:
+${phase.recommendations.map(r => `  - [${r.category}] ${r.action}
+    Timing: ${r.timing}
+    Cost: ${formatCurrency(r.estimatedCost)}
+    Impact: ${r.expectedImpact}`).join('\n')}
+• Key Metrics:
+${phase.keyMetrics.map(m => `  - ${m.metric}: ${m.target}`).join('\n')}`
+    ).join('\n\n')
+  }
+
+  const existingFormattedText = `Project Overview
 ────────────────
 Start Date: ${plan.timeline?.startDate || 'Not set'}
 End Date: ${plan.timeline?.endDate || 'Not set'}
@@ -77,4 +106,16 @@ Budget Breakdown
 ${formatBudget()}
 Contingency: ${formatCurrency(plan.budget?.contingency || 0)}
 Total Allocated: ${formatCurrency(plan.budget?.total || 0)}`
+
+  return `${existingFormattedText}
+
+Revenue Predictions (5 Year)
+──────────────────────────${formatRevenuePredictions()}
+
+Scaling Strategy
+───────────────${formatScalingPlan()}
+
+Industry Benchmarks
+─────────────────
+${plan.scaling?.industryBenchmarks.map(b => `• ${b.metric}: ${b.benchmark} (Source: ${b.source})`).join('\n')}`
 } 
