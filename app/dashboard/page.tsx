@@ -1,22 +1,32 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useUser } from '@/context/UserContext'
 import { useRouter } from 'next/navigation'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { supabase } from '@/lib/clients/supabaseClient'
 import { ProjectPlanDisplay } from '@/components/ProjectPlanDisplay'
 import { RoadmapDisplay } from '@/components/RoadmapDisplay'
 import { ProgressBar } from '@/components/ProgressBar'
 import { AssetGenerationStatus } from '@/lib/types/assets'
 import { GanttDownloadButton } from '@/components/GanttDownloadButton'
+import { PitchDeckDownloadButton } from '@/components/PitchDeckDownloadButton'
 
 export default function Dashboard() {
-  const { user } = useUser()
+  const [user, setUser] = useState(null)
   const [error, setError] = useState(null)
   const [generationStatus, setGenerationStatus] = useState(AssetGenerationStatus.NOT_STARTED)
   const [projectPlan, setProjectPlan] = useState(null)
   const [roadmap, setRoadmap] = useState(null)
-  const [ganttUrl, setGanttUrl] = useState<string | null>(null)
+  const [pitchDeck, setPitchDeck] = useState(null)
+  const supabase = createClientComponentClient()
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      setUser(currentUser)
+    }
+    getUser()
+  }, [supabase.auth])
 
   const handleGenerateAssets = async () => {
     if (!user?.id) return
@@ -46,12 +56,32 @@ export default function Dashboard() {
       if (!roadmapResponse.ok) throw new Error(roadmapData.error)
       setRoadmap(roadmapData.roadmap)
 
+      // Generate and Download Pitch Deck PDF
+      const pitchDeckResponse = await fetch('/api/pitch-deck/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectPlan: planData.plan }),
+        credentials: 'include',
+      })
+
+      if (!pitchDeckResponse.ok) {
+        const errorData = await pitchDeckResponse.json()
+        throw new Error(errorData.error)
+      }
+
+      // Handle PDF download
+      const pdfBlob = await pitchDeckResponse.blob()
+      const url = URL.createObjectURL(pdfBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'pitch-deck.pdf'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
       // Wait for components to render
       await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // Generate PDFs
-      const projectPlanPDF = await handleDownloadProjectPlanPDF()
-      const roadmapPDF = await handleDownloadRoadmapPDF()
 
       setGenerationStatus(AssetGenerationStatus.COMPLETED)
     } catch (err) {
@@ -59,16 +89,6 @@ export default function Dashboard() {
       setError(err.message)
       setGenerationStatus(AssetGenerationStatus.FAILED)
     }
-  }
-
-  const handleDownloadProjectPlanPDF = async () => {
-    // Implementation similar to RoadmapDisplay's handleDownloadPDF
-    // but targeting ProjectPlanDisplay's content
-  }
-
-  const handleDownloadRoadmapPDF = async () => {
-    if (!document.querySelector('.react-flow')) return
-    // Reference: components/RoadmapDisplay.tsx, lines 16-58
   }
 
   return (
@@ -109,7 +129,12 @@ export default function Dashboard() {
 
         {projectPlan && <ProjectPlanDisplay plan={projectPlan} />}
         {roadmap && <RoadmapDisplay projectPlan={projectPlan} />}
-        {user?.id && projectPlan && <GanttDownloadButton userId={user.id} />}
+        {user?.id && projectPlan && (
+          <div className="flex gap-4">
+            <GanttDownloadButton userId={user.id} />
+            {pitchDeck && <PitchDeckDownloadButton userId={user.id} pitchDeck={pitchDeck} />}
+          </div>
+        )}
       </div>
     </div>
   )
