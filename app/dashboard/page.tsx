@@ -8,69 +8,34 @@ import { ProjectPlanDisplay } from '@/components/ProjectPlanDisplay'
 import { RoadmapDisplay } from '@/components/RoadmapDisplay'
 import { ProgressBar } from '@/components/ProgressBar'
 import { AssetGenerationStatus } from '@/lib/types/assets'
-import { RoadmapGenerateButton } from '@/components/RoadmapGenerateButton'
 
 export default function Dashboard() {
-  const { user, session } = useUser()
-  const router = useRouter()
-  const [generationStatus, setGenerationStatus] = useState<AssetGenerationStatus>(AssetGenerationStatus.NOT_STARTED)
+  const { user } = useUser()
+  const [error, setError] = useState(null)
+  const [generationStatus, setGenerationStatus] = useState(AssetGenerationStatus.NOT_STARTED)
   const [projectPlan, setProjectPlan] = useState(null)
   const [roadmap, setRoadmap] = useState(null)
-  const [error, setError] = useState(null)
-
-  useEffect(() => {
-    if (!session?.user?.id) return
-
-    const checkPaymentStatus = async () => {
-      try {
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('payment_status')
-          .eq('id', session.user.id)
-          .single()
-
-        if (userError) throw userError
-
-        if (!userData || userData.payment_status !== 'paid') {
-          router.push('/payment')
-          return
-        }
-      } catch (err) {
-        console.error('Error checking payment status:', err)
-        setError(err.message)
-      }
-    }
-
-    checkPaymentStatus()
-  }, [session, router])
 
   const handleGenerateAssets = async () => {
     if (!user?.id) return
     setError(null)
-    setGenerationStatus(AssetGenerationStatus.GENERATING_PLAN)
+    setGenerationStatus(AssetGenerationStatus.GENERATING_ASSETS)
 
     try {
-      // Generate Project Plan
-      const planResponse = await fetch('/api/project-plan/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      })
+      // Fetch existing project plan
+      const { data: planData, error: planError } = await supabase
+        .from('project_plans')
+        .select('plan')
+        .eq('user_id', user.id)
+        .single()
 
-      const planData = await planResponse.json()
-      if (!planResponse.ok) throw new Error(planData.error)
+      if (planError) throw new Error('Failed to fetch project plan')
       setProjectPlan(planData.plan)
 
-      // Add delay to ensure project plan is saved
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
-      // Generate Roadmap with project plan data
-      setGenerationStatus(AssetGenerationStatus.GENERATING_ROADMAP)
+      // Generate Roadmap
       const roadmapResponse = await fetch('/api/roadmap/generate', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json' 
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectPlan: planData.plan }),
         credentials: 'include',
       })
@@ -79,12 +44,29 @@ export default function Dashboard() {
       if (!roadmapResponse.ok) throw new Error(roadmapData.error)
       setRoadmap(roadmapData.roadmap)
 
+      // Wait for components to render
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // Generate PDFs
+      const projectPlanPDF = await handleDownloadProjectPlanPDF()
+      const roadmapPDF = await handleDownloadRoadmapPDF()
+
       setGenerationStatus(AssetGenerationStatus.COMPLETED)
     } catch (err) {
       console.error('Error generating assets:', err)
       setError(err.message)
       setGenerationStatus(AssetGenerationStatus.FAILED)
     }
+  }
+
+  const handleDownloadProjectPlanPDF = async () => {
+    // Implementation similar to RoadmapDisplay's handleDownloadPDF
+    // but targeting ProjectPlanDisplay's content
+  }
+
+  const handleDownloadRoadmapPDF = async () => {
+    if (!document.querySelector('.react-flow')) return
+    // Reference: components/RoadmapDisplay.tsx, lines 16-58
   }
 
   return (
@@ -124,12 +106,6 @@ export default function Dashboard() {
         )}
 
         {projectPlan && <ProjectPlanDisplay plan={projectPlan} />}
-        {projectPlan && !roadmap && (
-          <RoadmapGenerateButton 
-            projectPlan={projectPlan} 
-            onRoadmapGenerated={(roadmapData) => setRoadmap(roadmapData)} 
-          />
-        )}
         {roadmap && <RoadmapDisplay projectPlan={projectPlan} />}
       </div>
     </div>
