@@ -24,8 +24,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#1a1f2e] text-white">
-      <div className="w-full max-w-md bg-[#232a3b] p-8 rounded-xl shadow-md border border-amber-900/30">
+    <div className="min-h-screen flex items-center justify-center bg-[#1a1f2e] text-white [color-scheme:dark]">
+      <div className="w-full max-w-md bg-[#232a3b] p-8 rounded-xl shadow-md border border-amber-900/30 [color-scheme:dark]">
         <h1 className="text-2xl font-bold mb-6 text-center text-amber-500">Login</h1>
         <form onSubmit={handleLogin} className="space-y-4">
           <div>

@@ -14,7 +14,7 @@ export default function RootLayout({
         <title>Project Planner</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
-      <body className="min-h-screen bg-[#1a1f2e]">
+      <body className="min-h-screen">
         <UserContextProvider>
           {children}
         </UserContextProvider>

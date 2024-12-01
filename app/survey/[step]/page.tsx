@@ -93,81 +93,106 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#1a1f2e] text-white p-8 bg-gradient-to-b from-[#1a1f2e] to-[#2d1810]">
-      <div className="max-w-3xl mx-auto bg-[#232a3b] rounded-2xl shadow-2xl p-10 border border-amber-900/30">
+    <div className="min-h-screen bg-white text-gray-900">
+      <div className="w-full bg-white border-b border-gray-200">
+        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
+          <button
+            onClick={() => router.push('/')}
+            className="px-6 py-2.5 bg-white text-gray-700 rounded-lg text-sm font-medium
+                      hover:bg-gray-50 transform hover:scale-105 active:scale-95
+                      transition duration-200 ease-in-out
+                      border border-gray-200 flex items-center gap-2 shadow-sm"
+          >
+            <span>←</span> Home
+          </button>
+          <span className="text-gray-600 font-medium relative">
+            Question {currentStep} of {surveyQuestions.length}
+            <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
+          </span>
+        </div>
+      </div>
+
+      <div className="max-w-3xl mx-auto px-4 py-12">
         <div className="mb-12">
-          <h1 className="text-3xl font-bold mb-2">Question {currentStep} of {surveyQuestions.length}</h1>
-          <div className="flex items-center gap-3 text-gray-400 mb-6">
-            <span className="text-sm">Step {currentStep}/{surveyQuestions.length}</span>
-            <div className="flex-1 h-1 bg-gray-700 rounded-full">
+          <div className="flex items-center gap-3 text-gray-500">
+            <span className="text-sm font-medium">Progress</span>
+            <div className="flex-1 h-1 bg-gray-100 rounded-full">
               <div 
-                className="h-full bg-[#f5a524] rounded-full transition-all duration-500 ease-out"
+                className="h-full bg-emerald-500 rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${(currentStep / surveyQuestions.length) * 100}%` }}
               />
             </div>
+            <span className="text-sm font-medium">{Math.round((currentStep / surveyQuestions.length) * 100)}%</span>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-          <div className="space-y-6">
-            <label className="text-3xl font-bold block leading-relaxed text-[#f5a524]">
-              {question.question}
-            </label>
-            <div className="space-y-4">
-              <textarea
-                {...register('answer')}
-                className="w-full px-6 py-4 bg-[#1a1f2e] rounded-xl
-                           border-2 border-[#f5a524]/30 text-lg text-white
-                           placeholder-[#f5a524]/40 min-h-[200px]
-                           focus:outline-none focus:border-[#f5a524]
-                           transition duration-300 ease-in-out"
-                placeholder={question.placeholder}
-                autoFocus
-              />
-              {errors.answer && <p className="text-red-500">{errors.answer.message}</p>}
-              <div className="text-sm bg-[#1a1f2e] p-6 rounded-xl border border-[#f5a524]/30">
-                <p className="font-medium mb-3 text-[#f5a524]">{question.guidance.title}</p>
-                <ul className="space-y-2 text-white/90">
-                  {question.guidance.items.map((item, index) => (
-                    <li key={index} className="flex items-center">
-                      <span className="mr-2 text-[#f5a524]">{item.icon}</span> {item.text}
-                    </li>
-                  ))}
-                </ul>
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+            <div className="space-y-6">
+              <label className="text-3xl font-bold block leading-relaxed text-gray-900 relative inline-block">
+                {question.question}
+                <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
+                              transform -rotate-1 translate-y-1"></div>
+              </label>
+              <div className="space-y-4">
+                <textarea
+                  {...register('answer')}
+                  className="w-full px-6 py-4 bg-gray-50 rounded-xl
+                           border-2 border-gray-200 text-gray-900
+                           placeholder-gray-400 min-h-[200px]
+                           focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500
+                           transition duration-200 ease-in-out"
+                  placeholder={question.placeholder}
+                  autoFocus
+                />
+                {errors.answer && (
+                  <p className="text-red-500 text-sm">{errors.answer.message}</p>
+                )}
+                
+                <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                  <p className="font-medium mb-3 text-gray-900 relative inline-block">
+                    {question.guidance.title}
+                    <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
+                  </p>
+                  <ul className="space-y-2 text-gray-600">
+                    {question.guidance.items.map((item, index) => (
+                      <li key={index} className="flex items-center gap-2">
+                        <span className="text-emerald-500">{item.icon}</span>
+                        <span>{item.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex justify-between pt-6">
-            {currentStep > 1 && (
+            <div className="flex justify-between items-center pt-6">
+              <div className="space-x-4">
+                {currentStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={handleBack}
+                    className="px-6 py-2.5 bg-white text-gray-700 rounded-lg text-sm font-medium
+                             hover:bg-gray-50 transform hover:scale-105 active:scale-95
+                             transition duration-200 ease-in-out shadow-sm
+                             border border-gray-200 flex items-center gap-2"
+                  >
+                    <span>←</span> Previous
+                  </button>
+                )}
+              </div>
               <button
-                type="button"
-                onClick={handleBack}
-                className="px-8 py-4 bg-gradient-to-r from-gray-600 to-gray-700
-                         text-white rounded-xl text-lg font-semibold
-                         hover:from-gray-700 hover:to-gray-800
-                         transform hover:scale-105 active:scale-95
-                         transition duration-200 ease-in-out
-                         shadow-lg hover:shadow-xl
-                         border border-gray-500/30"
+                type="submit"
+                className="px-6 py-2.5 bg-emerald-500 text-white rounded-lg text-sm font-medium
+                         hover:bg-emerald-600 transform hover:scale-105 active:scale-95
+                         transition duration-200 ease-in-out shadow-sm
+                         flex items-center gap-2"
               >
-                Back to Previous
+                {currentStep === surveyQuestions.length ? 'Complete' : 'Continue'} <span>→</span>
               </button>
-            )}
-            <button
-              type="submit"
-              className="px-8 py-4 bg-gradient-to-r from-amber-600 to-amber-700
-                       text-white rounded-xl text-lg font-semibold
-                       hover:from-amber-700 hover:to-amber-800
-                       transform hover:scale-105 active:scale-95
-                       transition duration-200 ease-in-out
-                       shadow-lg hover:shadow-xl
-                       border border-amber-500/30"
-            >
-              {currentStep === surveyQuestions.length ? 'Complete' : 'Continue'}
-            </button>
-          </div>
-        </form>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   )

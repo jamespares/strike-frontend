@@ -1,82 +1,155 @@
-import { NextResponse } from 'next/server'
-import { generatePitchDeckContent } from '@/lib/utils/generatePitchDeck'
-import { PDFDocument, rgb } from 'pdf-lib'
+import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@/lib/clients/supabaseServer'
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 
-export async function POST(request: Request) {
+async function generatePitchDeck(projectPlan: any) {
+  const pdfDoc = await PDFDocument.create()
+  
+  // Title Slide
+  const titlePage = pdfDoc.addPage()
+  const { width, height } = titlePage.getSize()
+  const titleFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+  const subtitleFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
+  
+  const title = projectPlan.businessName || 'Business Pitch Deck'
+  const titleWidth = titleFont.widthOfTextAtSize(title, 36)
+  
+  titlePage.drawText(title, {
+    x: (width - titleWidth) / 2,
+    y: height - 150,
+    size: 36,
+    font: titleFont,
+    color: rgb(0, 0, 0),
+  })
+
+  const subtitle = projectPlan.tagline || 'Your Vision, Our Solution'
+  const subtitleWidth = subtitleFont.widthOfTextAtSize(subtitle, 18)
+  
+  titlePage.drawText(subtitle, {
+    x: (width - subtitleWidth) / 2,
+    y: height - 200,
+    size: 18,
+    font: subtitleFont,
+    color: rgb(0.4, 0.4, 0.4),
+  })
+
+  // Problem & Solution Slide
+  const problemPage = pdfDoc.addPage()
+  const sectionFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+  const contentFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
+  
+  problemPage.drawText('Problem', {
+    x: 50,
+    y: height - 50,
+    size: 24,
+    font: sectionFont,
+    color: rgb(0, 0, 0),
+  })
+
+  if (projectPlan.problem) {
+    problemPage.drawText(projectPlan.problem, {
+      x: 50,
+      y: height - 100,
+      size: 14,
+      font: contentFont,
+      color: rgb(0, 0, 0),
+    })
+  }
+
+  problemPage.drawText('Solution', {
+    x: 50,
+    y: height - 200,
+    size: 24,
+    font: sectionFont,
+    color: rgb(0, 0, 0),
+  })
+
+  if (projectPlan.solution) {
+    problemPage.drawText(projectPlan.solution, {
+      x: 50,
+      y: height - 250,
+      size: 14,
+      font: contentFont,
+      color: rgb(0, 0, 0),
+    })
+  }
+
+  // Market & Business Model Slide
+  const marketPage = pdfDoc.addPage()
+  
+  marketPage.drawText('Market Opportunity', {
+    x: 50,
+    y: height - 50,
+    size: 24,
+    font: sectionFont,
+    color: rgb(0, 0, 0),
+  })
+
+  if (projectPlan.marketOpportunity) {
+    marketPage.drawText(projectPlan.marketOpportunity, {
+      x: 50,
+      y: height - 100,
+      size: 14,
+      font: contentFont,
+      color: rgb(0, 0, 0),
+    })
+  }
+
+  marketPage.drawText('Business Model', {
+    x: 50,
+    y: height - 200,
+    size: 24,
+    font: sectionFont,
+    color: rgb(0, 0, 0),
+  })
+
+  if (projectPlan.businessModel) {
+    marketPage.drawText(projectPlan.businessModel, {
+      x: 50,
+      y: height - 250,
+      size: 14,
+      font: contentFont,
+      color: rgb(0, 0, 0),
+    })
+  }
+
+  return pdfDoc
+}
+
+export async function POST(request: NextRequest) {
   try {
-    const { projectPlan } = await request.json()
-    if (!projectPlan) {
-      return NextResponse.json(
-        { error: 'Project plan is required' },
-        { status: 400 }
-      )
-    }
-
-    // Generate pitch deck content using OpenAI
-    const pitchDeckContent = await generatePitchDeckContent(projectPlan)
-
-    // Create PDF
-    const pdfDoc = await PDFDocument.create()
+    const supabase = createServerClient()
     
-    const slides = [
-      { title: 'Company Purpose', content: String(pitchDeckContent.companyPurpose || '') },
-      { title: 'Problem', content: String(pitchDeckContent.problem || '') },
-      { title: 'Solution', content: String(pitchDeckContent.solution || '') },
-      { title: 'Why Now', content: String(pitchDeckContent.whyNow || '') },
-      { title: 'Market Size', content: String(pitchDeckContent.marketSize || '') },
-      { title: 'Competition', content: String(pitchDeckContent.competition || '') },
-      { title: 'Product', content: String(pitchDeckContent.product || '') },
-      { title: 'Business Model', content: String(pitchDeckContent.businessModel || '') },
-      { title: 'Team', content: String(pitchDeckContent.team || '') },
-      { title: 'Financials', content: String(pitchDeckContent.financials || '') }
-    ]
-
-    for (const slide of slides) {
-      let page = pdfDoc.addPage([842, 595])
-      const { width, height } = page.getSize()
-
-      page.drawText(slide.title, {
-        x: 50,
-        y: height - 50,
-        size: 24,
-        color: rgb(0, 0, 0)
-      })
-
-      const contentLines = slide.content.split('\n')
-      let y = height - 100
-      
-      contentLines.forEach(line => {
-        if (y < 50) {
-          page = pdfDoc.addPage([842, 595])
-          y = height - 50
-        }
-        
-        page.drawText(String(line).trim(), {
-          x: 50,
-          y,
-          size: 14,
-          color: rgb(0, 0, 0)
-        })
-        
-        y -= 20
-      })
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    const pdfBytes = await pdfDoc.save()
-    const buffer = Buffer.from(pdfBytes)
+    const body = await request.json()
+    const projectPlan = body.projectPlan
 
-    return new NextResponse(buffer, {
+    if (!projectPlan) {
+      return NextResponse.json({ 
+        error: 'Project plan data is required in request body' 
+      }, { status: 400 })
+    }
+
+    console.log('Generating pitch deck with project plan:', projectPlan)
+    const pdfDoc = await generatePitchDeck(projectPlan)
+    const pdfBytes = await pdfDoc.save()
+    
+    return new NextResponse(pdfBytes, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename="pitch-deck.pdf"',
-        'Content-Length': buffer.length.toString()
+        'Content-Disposition': 'attachment; filename="pitch-deck.pdf"'
       }
     })
-  } catch (error) {
-    console.error('Error generating pitch deck:', error)
-    return NextResponse.json(
-      { error: 'Failed to generate pitch deck' },
-      { status: 500 }
-    )
+  } catch (error: any) {
+    console.error('Pitch deck generation error:', error)
+    return NextResponse.json({ 
+      error: error.message,
+      details: error.code || 'unknown_error'
+    }, { status: 500 })
   }
 } 
