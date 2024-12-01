@@ -46,9 +46,16 @@ export default function Home() {
       <nav className="border-b border-gray-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
-            <div className="flex-shrink-0">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 w-14 h-14 mr-4">
+                <img
+                  src="/logo-square.png"
+                  alt="Strike Logo"
+                  className="w-full h-full object-contain"
+                />
+              </div>
               <span className="text-2xl font-bold text-gray-900 relative inline-block">
-                launchmanager.io
+                launchboost.me
                 <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
                               transform -rotate-1 translate-y-1"></div>
               </span>
@@ -91,7 +98,7 @@ export default function Home() {
                 </span>
               </h1>
               <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-xl lg:text-lg xl:text-xl">
-                launchmanager.io helps you turn your business idea into a concrete plan with AI-powered tools, 
+                Launch Boost helps you turn your business idea into a concrete plan with AI-powered tools, 
                 custom roadmaps, and expert guidance every step of the way.
               </p>
               <div className="mt-8 sm:max-w-lg sm:mx-auto sm:text-center lg:text-left">

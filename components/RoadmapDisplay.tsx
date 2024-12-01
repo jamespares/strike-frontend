@@ -3,10 +3,63 @@ import { PDFDocument, rgb } from 'pdf-lib'
 import html2canvas from 'html2canvas'
 import { ProjectPlan } from '@/lib/types/survey'
 import { RoadmapFlow } from './RoadmapFlow'
-import { generateFlowData } from '@/lib/utils/generateFlowData'
+import { Node, Edge } from 'reactflow'
 
 interface RoadmapDisplayProps {
   projectPlan: ProjectPlan
+}
+
+function generateFlowData(projectPlan: ProjectPlan) {
+  const nodes: Node[] = []
+  const edges: Edge[] = []
+  
+  // Sort tasks by start date
+  const sortedTasks = [...projectPlan.tasks].sort(
+    (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+  )
+
+  // Create nodes for each task
+  sortedTasks.forEach((task, index) => {
+    nodes.push({
+      id: task.id,
+      type: 'taskNode',
+      position: { x: index * 250, y: 100 },
+      data: {
+        title: task.title,
+        startDate: task.startDate,
+        endDate: task.endDate,
+        description: task.description
+      }
+    })
+
+    // Create edges based on dependencies
+    if (task.dependencies) {
+      task.dependencies.forEach(depId => {
+        edges.push({
+          id: `${depId}-${task.id}`,
+          source: depId,
+          target: task.id,
+          type: 'smoothstep',
+          animated: true
+        })
+      })
+    }
+  })
+
+  // Add milestone nodes
+  projectPlan.timeline.milestones.forEach((milestone, index) => {
+    nodes.push({
+      id: `milestone-${index}`,
+      type: 'milestoneNode',
+      position: { x: index * 250, y: 250 },
+      data: {
+        description: milestone.description,
+        date: milestone.date
+      }
+    })
+  })
+
+  return { nodes, edges }
 }
 
 export function RoadmapDisplay({ projectPlan }: RoadmapDisplayProps) {

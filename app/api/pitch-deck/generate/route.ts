@@ -1,155 +1,181 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/clients/supabaseServer'
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+import OpenAI from 'openai'
+import { ProjectPlan } from '@/lib/types/survey'
+import PptxGenJS from 'pptxgenjs'
 
-async function generatePitchDeck(projectPlan: any) {
-  const pdfDoc = await PDFDocument.create()
-  
-  // Title Slide
-  const titlePage = pdfDoc.addPage()
-  const { width, height } = titlePage.getSize()
-  const titleFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-  const subtitleFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
-  
-  const title = projectPlan.businessName || 'Business Pitch Deck'
-  const titleWidth = titleFont.widthOfTextAtSize(title, 36)
-  
-  titlePage.drawText(title, {
-    x: (width - titleWidth) / 2,
-    y: height - 150,
-    size: 36,
-    font: titleFont,
-    color: rgb(0, 0, 0),
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+})
+
+async function generatePitchDeckContent(projectPlan: ProjectPlan) {
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      {
+        role: 'system',
+        content: `Create a pitch deck outline in JSON format with these sections:
+        {
+          "problemStatement": ["Problem point 1", "Problem point 2", "Problem point 3"],
+          "solution": ["Solution point 1", "Solution point 2", "Solution point 3"],
+          "market": ["Market point 1", "Market point 2", "Market point 3"],
+          "businessModel": ["Business model point 1", "Business model point 2", "Business model point 3"],
+          "goToMarket": ["Go-to-market point 1", "Go-to-market point 2", "Go-to-market point 3"],
+          "financials": ["Financial point 1", "Financial point 2", "Financial point 3"],
+          "team": ["Team point 1", "Team point 2", "Team point 3"],
+          "investment": ["Investment point 1", "Investment point 2", "Investment point 3"]
+        }
+
+        For each section:
+        - Write 3-4 clear, impactful bullet points
+        - Include relevant metrics and data points
+        - Keep content concise and compelling
+        - Ensure each point is a complete sentence
+        - Return ONLY valid JSON, no markdown or other formatting`
+      },
+      {
+        role: 'user',
+        content: `Create a pitch deck using this project plan:
+        ${JSON.stringify(projectPlan, null, 2)}`
+      }
+    ],
+    temperature: 0.7,
+    response_format: { type: "json_object" }
   })
 
-  const subtitle = projectPlan.tagline || 'Your Vision, Our Solution'
-  const subtitleWidth = subtitleFont.widthOfTextAtSize(subtitle, 18)
-  
-  titlePage.drawText(subtitle, {
-    x: (width - subtitleWidth) / 2,
-    y: height - 200,
-    size: 18,
-    font: subtitleFont,
-    color: rgb(0.4, 0.4, 0.4),
-  })
-
-  // Problem & Solution Slide
-  const problemPage = pdfDoc.addPage()
-  const sectionFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-  const contentFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
-  
-  problemPage.drawText('Problem', {
-    x: 50,
-    y: height - 50,
-    size: 24,
-    font: sectionFont,
-    color: rgb(0, 0, 0),
-  })
-
-  if (projectPlan.problem) {
-    problemPage.drawText(projectPlan.problem, {
-      x: 50,
-      y: height - 100,
-      size: 14,
-      font: contentFont,
-      color: rgb(0, 0, 0),
-    })
+  try {
+    const content = response.choices[0].message.content
+    if (!content) {
+      throw new Error('No content received from OpenAI')
+    }
+    
+    const parsedContent = JSON.parse(content)
+    console.log('Generated content:', JSON.stringify(parsedContent, null, 2))
+    return parsedContent
+  } catch (error) {
+    console.error('Failed to parse OpenAI response:', error)
+    console.error('Raw response:', response.choices[0].message.content)
+    throw new Error('Failed to generate pitch deck content')
   }
+}
 
-  problemPage.drawText('Solution', {
-    x: 50,
-    y: height - 200,
-    size: 24,
-    font: sectionFont,
-    color: rgb(0, 0, 0),
-  })
-
-  if (projectPlan.solution) {
-    problemPage.drawText(projectPlan.solution, {
-      x: 50,
-      y: height - 250,
-      size: 14,
-      font: contentFont,
-      color: rgb(0, 0, 0),
-    })
-  }
-
-  // Market & Business Model Slide
-  const marketPage = pdfDoc.addPage()
+async function createPowerPoint(content: any) {
+  const pres = new PptxGenJS()
   
-  marketPage.drawText('Market Opportunity', {
-    x: 50,
-    y: height - 50,
-    size: 24,
-    font: sectionFont,
-    color: rgb(0, 0, 0),
+  // Title slide
+  const titleSlide = pres.addSlide()
+  titleSlide.addText([{
+    text: "Pitch Deck",
+    options: {
+      x: '10%',
+      y: '40%',
+      w: '80%',
+      fontSize: 44,
+      bold: true,
+      align: 'center',
+      color: '363636'
+    }
+  }])
+
+  // Content slides
+  const sections = [
+    { title: 'Problem Statement', content: content.problemStatement },
+    { title: 'Solution Overview', content: content.solution },
+    { title: 'Market Opportunity', content: content.market },
+    { title: 'Business Model', content: content.businessModel },
+    { title: 'Go-to-Market Strategy', content: content.goToMarket },
+    { title: 'Financial Projections', content: content.financials },
+    { title: 'Team & Vision', content: content.team },
+    { title: 'Investment Ask', content: content.investment }
+  ]
+
+  sections.forEach(section => {
+    if (!section.content) return
+
+    const slide = pres.addSlide()
+    
+    // Add section title
+    slide.addText([{
+      text: section.title,
+      options: {
+        x: '5%',
+        y: '5%',
+        w: '90%',
+        h: '15%',
+        fontSize: 32,
+        bold: true,
+        color: '363636'
+      }
+    }])
+
+    // Add bullet points
+    const bulletPoints = Array.isArray(section.content) ? section.content : [section.content]
+    
+    // Create text objects for each bullet point
+    const textObjects = bulletPoints.map(point => ({
+      text: point,
+      options: {
+        bullet: true,
+        indentLevel: 0,
+        fontSize: 18,
+        color: '666666'
+      }
+    }))
+
+    // Add all bullet points at once
+    slide.addText(textObjects, {
+      x: '5%',
+      y: '25%',
+      w: '90%',
+      h: '70%',
+      align: 'left',
+      valign: 'top'
+    })
   })
 
-  if (projectPlan.marketOpportunity) {
-    marketPage.drawText(projectPlan.marketOpportunity, {
-      x: 50,
-      y: height - 100,
-      size: 14,
-      font: contentFont,
-      color: rgb(0, 0, 0),
-    })
-  }
-
-  marketPage.drawText('Business Model', {
-    x: 50,
-    y: height - 200,
-    size: 24,
-    font: sectionFont,
-    color: rgb(0, 0, 0),
-  })
-
-  if (projectPlan.businessModel) {
-    marketPage.drawText(projectPlan.businessModel, {
-      x: 50,
-      y: height - 250,
-      size: 14,
-      font: contentFont,
-      color: rgb(0, 0, 0),
-    })
-  }
-
-  return pdfDoc
+  // Return as buffer
+  return await pres.write({ outputType: 'nodebuffer' })
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient()
-    
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    
-    if (userError || !user) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
-    }
-
-    const body = await request.json()
-    const projectPlan = body.projectPlan
-
+    const { projectPlan } = await request.json()
     if (!projectPlan) {
-      return NextResponse.json({ 
-        error: 'Project plan data is required in request body' 
-      }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Project plan is required' },
+        { status: 400 }
+      )
     }
 
-    console.log('Generating pitch deck with project plan:', projectPlan)
-    const pdfDoc = await generatePitchDeck(projectPlan)
-    const pdfBytes = await pdfDoc.save()
+    console.log('Generating pitch deck content...')
+    const pitchDeckContent = await generatePitchDeckContent(projectPlan)
+
+    if (!pitchDeckContent) {
+      console.error('No content generated for pitch deck')
+      return NextResponse.json(
+        { error: 'Failed to generate pitch deck content' },
+        { status: 500 }
+      )
+    }
+
+    console.log('Creating PowerPoint presentation...')
+    console.log('Content structure:', JSON.stringify(pitchDeckContent, null, 2))
     
-    return new NextResponse(pdfBytes, {
+    const pptxBuffer = await createPowerPoint(pitchDeckContent)
+
+    console.log('Sending response...')
+    return new NextResponse(pptxBuffer, {
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename="pitch-deck.pdf"'
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'Content-Disposition': 'attachment; filename="pitch-deck.pptx"'
       }
     })
+
   } catch (error: any) {
-    console.error('Pitch deck generation error:', error)
-    return NextResponse.json({ 
-      error: error.message,
-      details: error.code || 'unknown_error'
-    }, { status: 500 })
+    console.error('Error generating pitch deck:', error)
+    console.error('Error stack:', error.stack)
+    return NextResponse.json(
+      { error: error.message || 'Failed to generate pitch deck' },
+      { status: 500 }
+    )
   }
 } 

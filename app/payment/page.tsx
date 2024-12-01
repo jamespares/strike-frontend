@@ -41,26 +41,69 @@ export default function Payment() {
   }
 
   return (
-    <div className="min-h-screen bg-[#1a1f2e] text-white p-8 bg-gradient-to-b from-[#1a1f2e] to-[#2d1810]">
-      <div className="max-w-3xl mx-auto bg-[#232a3b] rounded-2xl shadow-2xl p-10 border border-amber-900/30">
-        <h1 className="text-4xl font-bold mb-6 text-amber-500 font-serif">Complete Your Quest</h1>
-        <p className="text-xl mb-8 text-amber-100/90">
-          Your plan is ready! Complete your payment to receive your custom project assets.
-        </p>
-        <button 
-          onClick={handlePayment}
-          disabled={loading}
-          className={`px-8 py-4 bg-gradient-to-r from-amber-600 to-amber-700
-                    text-white rounded-xl text-lg font-semibold
-                    hover:from-amber-700 hover:to-amber-800
-                    transform hover:scale-105 active:scale-95
-                    transition duration-200 ease-in-out
-                    shadow-lg hover:shadow-xl
-                    border border-amber-500/30
-                    ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          {loading ? 'Processing...' : 'Pay Now (Test Mode)'}
-        </button>
+    <div className="min-h-screen bg-white">
+      <div className="max-w-4xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+          <div className="p-8">
+            <h1 className="text-3xl font-extrabold text-gray-900 relative inline-block">
+              Complete Your Purchase
+              <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 transform -rotate-1 translate-y-1"></div>
+            </h1>
+            
+            <div className="mt-8">
+              <div className="rounded-xl bg-gray-50 p-6 border border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-900 relative inline-block">
+                  Business Toolkit
+                  <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
+                </h2>
+                <p className="mt-2 text-gray-600">Complete business planning toolkit with all assets</p>
+                <div className="mt-4">
+                  <span className="text-4xl font-extrabold text-gray-900">$25</span>
+                  <span className="text-gray-500">/toolkit</span>
+                </div>
+                
+                <ul className="mt-6 space-y-3">
+                  <li className="flex items-center text-gray-600">
+                    <span className="text-emerald-500 mr-2">✓</span>
+                    Custom business roadmap
+                  </li>
+                  <li className="flex items-center text-gray-600">
+                    <span className="text-emerald-500 mr-2">✓</span>
+                    Detailed timeline with tasks
+                  </li>
+                  <li className="flex items-center text-gray-600">
+                    <span className="text-emerald-500 mr-2">✓</span>
+                    Budget tracking tools
+                  </li>
+                  <li className="flex items-center text-gray-600">
+                    <span className="text-emerald-500 mr-2">✓</span>
+                    Risk management strategies
+                  </li>
+                  <li className="flex items-center text-gray-600">
+                    <span className="text-emerald-500 mr-2">✓</span>
+                    Professional pitch deck
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <button 
+                onClick={handlePayment}
+                disabled={loading}
+                className={`w-full px-6 py-4 bg-emerald-500 text-white rounded-xl text-lg font-medium
+                         hover:bg-emerald-600 transform hover:scale-105 active:scale-95
+                         transition duration-200 ease-in-out shadow-sm
+                         ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {loading ? 'Processing...' : 'Complete Purchase'}
+              </button>
+              <p className="mt-4 text-sm text-gray-500 text-center">
+                Secure payment powered by Stripe
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
