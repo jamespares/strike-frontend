@@ -9,7 +9,6 @@ export default function PaymentSuccess() {
   const router = useRouter()
   const { session } = useUser()
   const [isLoading, setIsLoading] = useState(true)
-  const [generationStarted, setGenerationStarted] = useState(false)
   const [statusLog, setStatusLog] = useState<string[]>([])
 
   // Add log function
@@ -28,7 +27,7 @@ export default function PaymentSuccess() {
 
     const checkStatus = async () => {
       try {
-        addLog('Checking payment and plan status...')
+        addLog('Checking payment status...')
         
         // Check payment status
         const { data: userData, error: userError } = await supabase
@@ -44,58 +43,13 @@ export default function PaymentSuccess() {
 
         addLog(`Payment status: ${userData?.payment_status}`)
 
-        // Check project plan
-        const { data: planData, error: planError } = await supabase
-          .from('project_plans')
-          .select('id, plan')
-          .eq('user_id', session.user.id)
-          .single()
-
-        if (planError && planError.code !== 'PGRST116') { // Ignore "no rows returned" error
-          addLog(`Error fetching project plan: ${planError.message}`)
-          throw planError
-        }
-
-        const isPaid = userData?.payment_status === 'paid'
-        const hasPlan = !!planData?.id
-        const hasValidPlan = !!planData?.plan
-
-        addLog(`Status check - Paid: ${isPaid}, Has Plan: ${hasPlan}, Valid Plan: ${hasValidPlan}`)
-
-        if (isPaid && hasPlan && hasValidPlan) {
-          addLog('All conditions met, redirecting to dashboard')
+        if (userData?.payment_status === 'paid') {
+          addLog('Payment confirmed, redirecting to dashboard')
           router.push('/dashboard')
           return
         }
 
-        if (isPaid && (!hasPlan || !hasValidPlan) && !generationStarted) {
-          addLog('Payment confirmed, starting plan generation')
-          setGenerationStarted(true)
-          
-          try {
-            const response = await fetch('/api/project-plan/generate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-            })
-
-            if (!response.ok) {
-              const errorData = await response.json().catch(() => ({}))
-              addLog(`Plan generation failed: ${response.status} ${response.statusText}`)
-              addLog(`Error details: ${JSON.stringify(errorData)}`)
-              throw new Error('Failed to generate project plan')
-            }
-
-            const result = await response.json()
-            addLog('Plan generation API call successful')
-            addLog(`Generation result: ${JSON.stringify(result)}`)
-          } catch (error) {
-            addLog(`Error during plan generation: ${error instanceof Error ? error.message : 'Unknown error'}`)
-            throw error
-          }
-        }
-
-        addLog('Scheduling next status check')
+        addLog('Payment not yet confirmed, checking again in 2 seconds')
         timeoutId = setTimeout(checkStatus, 2000)
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error'
@@ -112,7 +66,7 @@ export default function PaymentSuccess() {
         clearTimeout(timeoutId)
       }
     }
-  }, [session, router, generationStarted])
+  }, [session, router])
 
   // Add status log to the UI (hidden in production, visible in development)
   const isDevelopment = process.env.NODE_ENV === 'development'
@@ -125,58 +79,43 @@ export default function PaymentSuccess() {
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 mb-6 bg-emerald-100 rounded-full">
                 <div className="w-8 h-8 text-emerald-500">
-                  {generationStarted ? (
-                    <svg className="animate-spin" viewBox="0 0 24 24">
-                      <circle 
-                        className="opacity-25" 
-                        cx="12" 
-                        cy="12" 
-                        r="10" 
-                        stroke="currentColor" 
-                        strokeWidth="4" 
-                        fill="none"
-                      />
-                      <path 
-                        className="opacity-75" 
-                        fill="currentColor" 
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M5 13l4 4L19 7" 
-                      />
-                    </svg>
-                  )}
+                  <svg className="animate-spin" viewBox="0 0 24 24">
+                    <circle 
+                      className="opacity-25" 
+                      cx="12" 
+                      cy="12" 
+                      r="10" 
+                      stroke="currentColor" 
+                      strokeWidth="4" 
+                      fill="none"
+                    />
+                    <path 
+                      className="opacity-75" 
+                      fill="currentColor" 
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
                 </div>
               </div>
-              
+
               <h1 className="text-3xl font-extrabold text-gray-900 relative inline-block">
-                {generationStarted ? 'Generating Your Assets' : 'Payment Successful'}
+                Processing Your Payment
                 <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 transform -rotate-1 translate-y-1"></div>
               </h1>
 
               <p className="mt-4 text-lg text-gray-600">
-                {generationStarted 
-                  ? 'Please wait while we create your custom business toolkit...'
-                  : 'Thank you for your purchase! We\'re preparing your business toolkit.'}
+                Please wait while we confirm your payment...
               </p>
 
               <div className="mt-8">
-                {generationStarted && (
-                  <div className="max-w-md mx-auto">
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-500 animate-pulse rounded-full w-full"></div>
-                    </div>
-                    <p className="mt-4 text-sm text-gray-500">
-                      This may take a few minutes. You&apos;ll be automatically redirected when ready.
-                    </p>
+                <div className="max-w-md mx-auto">
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500 animate-pulse rounded-full w-full"></div>
                   </div>
-                )}
+                  <p className="mt-4 text-sm text-gray-500">
+                    You&apos;ll be automatically redirected to your dashboard when ready.
+                  </p>
+                </div>
               </div>
 
               {isDevelopment && statusLog.length > 0 && (

@@ -134,17 +134,17 @@ export default function Home() {
                             transform -rotate-1 translate-y-1"></div>
             </h2>
             <p className="mt-4 text-xl text-gray-500">
-              Using frameworks from leading accelerators and VCs
+              Using frameworks from leading accelerators and VCs:
             </p>
             <div className="mt-6 flex justify-center items-center space-x-16">
-              <div className="h-14 flex items-center grayscale hover:grayscale-0 transition-all duration-200">
+              <div className="h-14 flex items-center transition-all duration-200">
                 <img 
                   src="/y-combinator-logo.png" 
                   alt="Y Combinator" 
                   className="h-full w-auto object-contain" 
                 />
               </div>
-              <div className="h-14 w-32 flex items-center grayscale hover:grayscale-0 transition-all duration-200 overflow-hidden">
+              <div className="h-14 w-32 flex items-center transition-all duration-200 overflow-hidden">
                 <img 
                   src="/sequoia-logo.png" 
                   alt="Sequoia Capital" 

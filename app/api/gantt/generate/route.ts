@@ -1,294 +1,176 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/clients/supabaseServer'
-import { ProjectPlan } from '@/lib/types/survey'
+import { NextResponse } from 'next/server'
+import { openai } from '@/lib/clients/openaiClient'
+import { SurveyQuestion } from '@/data/surveyQuestions'
 import ExcelJS from 'exceljs'
-import OpenAI from 'openai'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
+interface SurveyResponse {
+  problem: string
+  solution: string
+  key_risks: string
+  deadline: string
+  budget: number
+  pricing_model: string
+}
 
-async function generateAIContent(projectPlan: ProjectPlan) {
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
+interface Task {
+  id: number
+  name: string
+  startDate: string
+  endDate: string
+  dependencies: number[]
+  category: string
+  description: string
+}
+
+interface GanttData {
+  tasks: Task[]
+  categories: string[]
+}
+
+export async function POST(request: Request) {
+  try {
+    const { responses, questions } = await request.json() as {
+      responses: SurveyResponse
+      questions: SurveyQuestion[]
+    }
+
+    if (!responses || !questions) {
+      console.error('Missing survey responses or questions in request')
+      return NextResponse.json(
+        { error: 'Survey responses and questions are required' },
+        { status: 400 }
+      )
+    }
+
+    console.log('Generating Gantt chart data...')
+    const ganttData = await generateGanttData(responses, questions)
+    
+    if (!ganttData || !ganttData.tasks.length) {
+      console.error('Failed to generate Gantt chart data')
+      return NextResponse.json(
+        { error: 'Failed to generate Gantt chart data' },
+        { status: 500 }
+      )
+    }
+
+    console.log('Creating Excel workbook...')
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet('Project Timeline')
+
+    // Set up columns
+    worksheet.columns = [
+      { header: 'ID', key: 'id', width: 5 },
+      { header: 'Task', key: 'name', width: 40 },
+      { header: 'Category', key: 'category', width: 15 },
+      { header: 'Start Date', key: 'startDate', width: 12 },
+      { header: 'End Date', key: 'endDate', width: 12 },
+      { header: 'Dependencies', key: 'dependencies', width: 15 },
+      { header: 'Description', key: 'description', width: 50 }
+    ]
+
+    // Style the header row
+    worksheet.getRow(1).font = { bold: true }
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE6F4EA' }
+    }
+
+    // Add tasks
+    ganttData.tasks.forEach(task => {
+      worksheet.addRow({
+        id: task.id,
+        name: task.name,
+        category: task.category,
+        startDate: task.startDate,
+        endDate: task.endDate,
+        dependencies: task.dependencies.join(', '),
+        description: task.description
+      })
+    })
+
+    // Add category summary sheet
+    const summarySheet = workbook.addWorksheet('Categories')
+    summarySheet.columns = [
+      { header: 'Category', key: 'category', width: 20 },
+      { header: 'Task Count', key: 'count', width: 15 }
+    ]
+
+    // Style the summary header
+    summarySheet.getRow(1).font = { bold: true }
+    summarySheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE6F4EA' }
+    }
+
+    // Add category summaries
+    const categoryCounts = ganttData.tasks.reduce((acc, task) => {
+      acc[task.category] = (acc[task.category] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+
+    Object.entries(categoryCounts).forEach(([category, count]) => {
+      summarySheet.addRow({ category, count })
+    })
+
+    // Generate the Excel file
+    const buffer = await workbook.xlsx.writeBuffer()
+    
+    return new Response(buffer, {
+      headers: {
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': 'attachment; filename="project-timeline.xlsx"'
+      }
+    })
+  } catch (error: any) {
+    console.error('Error generating Gantt chart:', error)
+    return NextResponse.json(
+      { error: error.message || 'Failed to generate Gantt chart' },
+      { status: 500 }
+    )
+  }
+}
+
+async function generateGanttData(responses: SurveyResponse, questions: SurveyQuestion[]): Promise<GanttData> {
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4-1106-preview",
     messages: [
       {
-        role: 'system',
-        content: `You are an expert project management consultant. Generate comprehensive spreadsheet content.
-        Return a JSON object containing:
-        
-        1. Executive Dashboard KPIs:
-        - Project health metrics
-        - Budget vs actual tracking
-        - Risk assessment scores
-        - Timeline progress indicators
-        
-        2. Financial Analysis:
-        - Revenue projections
-        - ROI calculations
-        - Cash flow forecasts
-        - Break-even analysis
-        
-        3. Risk Matrix:
-        - Risk probability scores
-        - Impact assessments
-        - Mitigation effectiveness
-        - Contingency triggers
-        
-        Return ONLY a valid JSON object.`
+        role: "system",
+        content: "You are an expert project manager. Create a detailed project timeline with tasks, dependencies, and categories based on the survey responses. Focus on realistic timelines and clear task breakdowns."
       },
       {
-        role: 'user',
-        content: `Generate professional spreadsheet metrics using this project plan:
-        ${JSON.stringify(projectPlan, null, 2)}`
+        role: "user",
+        content: `Create a detailed project timeline based on these survey responses:
+
+Questions and Answers:
+${questions.map(q => `
+Q: ${q.question}
+A: ${responses[q.fieldName as keyof SurveyResponse]}
+Context: ${q.guidance.title}
+- ${q.guidance.items.map(item => item.text).join('\n- ')}
+`).join('\n')}
+
+Generate a project timeline with the following requirements:
+1. Break down the project into clear, actionable tasks
+2. Set realistic start and end dates based on the deadline
+3. Identify dependencies between tasks
+4. Categorize tasks (e.g., Development, Marketing, Legal)
+5. Include clear task descriptions
+6. Account for risks and potential delays
+7. Include key milestones
+
+Format the response as a JSON object with:
+1. tasks: Array of task objects with {id, name, startDate, endDate, dependencies, category, description}
+2. categories: Array of unique category names
+
+Use realistic dates starting from today, and ensure all dates are in YYYY-MM-DD format.`
       }
     ],
     temperature: 0.7,
     response_format: { type: "json_object" }
   })
 
-  return JSON.parse(response.choices[0].message.content)
+  return JSON.parse(completion.choices[0].message.content || '{}')
 }
-
-async function generateGanttChart(projectPlan: ProjectPlan) {
-  try {
-    const workbook = new ExcelJS.Workbook()
-    const aiContent = await generateAIContent(projectPlan)
-    
-    // Tasks Sheet
-    console.log('Creating tasks sheet...')
-    const tasksSheet = workbook.addWorksheet('Tasks')
-    tasksSheet.columns = [
-      { header: 'ID', key: 'id', width: 10 },
-      { header: 'Task', key: 'task', width: 40 },
-      { header: 'Start Date', key: 'start', width: 15 },
-      { header: 'End Date', key: 'end', width: 15 },
-      { header: 'Duration (days)', key: 'duration', width: 15 },
-      { header: 'Dependencies', key: 'dependencies', width: 20 },
-      { header: 'Resources', key: 'resources', width: 20 },
-      { header: 'Cost', key: 'cost', width: 15 },
-      { header: 'Status', key: 'status', width: 15 }
-    ]
-
-    // Style the header row
-    const headerRow = tasksSheet.getRow(1)
-    headerRow.font = { bold: true }
-    headerRow.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFE0E0E0' }
-    }
-
-    // Add tasks
-    console.log('Adding tasks to sheet...')
-    projectPlan.tasks.forEach((task, index) => {
-      const startDate = new Date(task.startDate)
-      const endDate = new Date(task.endDate)
-      const duration = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
-
-      tasksSheet.addRow({
-        id: task.id,
-        task: task.title,
-        start: startDate,
-        end: endDate,
-        duration,
-        dependencies: task.dependencies?.join(', ') || '',
-        resources: task.assignedTo?.join(', ') || '',
-        cost: task.estimatedCost,
-        status: 'Not Started'
-      })
-
-      // Style the task row
-      const row = tasksSheet.getRow(index + 2)
-      row.eachCell((cell) => {
-        cell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' }
-        }
-      })
-
-      // Format dates
-      row.getCell('start').numFmt = 'mm/dd/yyyy'
-      row.getCell('end').numFmt = 'mm/dd/yyyy'
-      row.getCell('cost').numFmt = '"$"#,##0.00'
-    })
-
-    // Add conditional formatting to Tasks sheet
-    tasksSheet.addConditionalFormatting({
-      ref: 'A2:I1000',
-      rules: [
-        {
-          type: 'expression',
-          formulae: ['AND(TODAY()>D2,I2<>"Completed")'],
-          style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FFFF0000' } } }
-        },
-        {
-          type: 'expression',
-          formulae: ['I2="Completed"'],
-          style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF90EE90' } } }
-        }
-      ]
-    })
-
-    // Add data validation for Status
-    tasksSheet.dataValidations.add('I2:I1000', {
-      type: 'list',
-      allowBlank: true,
-      formulae: ['"Not Started,In Progress,Completed,Blocked"']
-    })
-
-    // Add AI-generated Dashboard sheet
-    const dashboardSheet = workbook.addWorksheet('Executive Dashboard')
-    // Add KPIs and metrics from aiContent
-
-    // Timeline Sheet
-    console.log('Creating timeline sheet...')
-    const timelineSheet = workbook.addWorksheet('Timeline')
-    timelineSheet.columns = [
-      { header: 'Milestone', key: 'milestone', width: 40 },
-      { header: 'Date', key: 'date', width: 15 },
-      { header: 'Description', key: 'description', width: 50 }
-    ]
-
-    // Style the header row
-    const timelineHeader = timelineSheet.getRow(1)
-    timelineHeader.font = { bold: true }
-    timelineHeader.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFE0E0E0' }
-    }
-
-    // Add milestones
-    console.log('Adding milestones to timeline...')
-    projectPlan.timeline.milestones.forEach((milestone, index) => {
-      timelineSheet.addRow({
-        milestone: milestone.description,
-        date: new Date(milestone.date),
-        description: milestone.description
-      })
-
-      // Style the milestone row
-      const row = timelineSheet.getRow(index + 2)
-      row.eachCell((cell) => {
-        cell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' }
-        }
-      })
-
-      // Format date
-      row.getCell('date').numFmt = 'mm/dd/yyyy'
-    })
-
-    // Budget Sheet
-    console.log('Creating budget sheet...')
-    const budgetSheet = workbook.addWorksheet('Budget')
-    budgetSheet.columns = [
-      { header: 'Category', key: 'category', width: 30 },
-      { header: 'Amount', key: 'amount', width: 15 }
-    ]
-
-    // Style the header row
-    const budgetHeader = budgetSheet.getRow(1)
-    budgetHeader.font = { bold: true }
-    budgetHeader.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFE0E0E0' }
-    }
-
-    // Add budget items
-    console.log('Adding budget items...')
-    Object.entries(projectPlan.budget.breakdown).forEach(([category, amount], index) => {
-      budgetSheet.addRow({
-        category,
-        amount
-      })
-
-      // Style the budget row
-      const row = budgetSheet.getRow(index + 2)
-      row.eachCell((cell) => {
-        cell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' }
-        }
-      })
-
-      // Format amount
-      row.getCell('amount').numFmt = '"$"#,##0.00'
-    })
-
-    // Add total and contingency
-    const totalRow = budgetSheet.addRow({
-      category: 'Contingency',
-      amount: projectPlan.budget.contingency
-    })
-    totalRow.font = { bold: true }
-    totalRow.getCell('amount').numFmt = '"$"#,##0.00'
-
-    const grandTotalRow = budgetSheet.addRow({
-      category: 'Total Budget',
-      amount: projectPlan.budget.total
-    })
-    grandTotalRow.font = { bold: true }
-    grandTotalRow.getCell('amount').numFmt = '"$"#,##0.00'
-
-    return workbook
-  } catch (error) {
-    console.error('Error generating enhanced Gantt chart:', error)
-    throw error
-  }
-}
-
-export async function POST(request: NextRequest) {
-  console.group('📊 Gantt Chart Generation')
-  try {
-    const supabase = createServerClient()
-    console.log('Checking authentication...')
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    
-    if (userError || !user) {
-      console.error('Authentication failed:', userError)
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
-    }
-
-    const body = await request.json()
-    const projectPlan = body.projectPlan as ProjectPlan
-
-    if (!projectPlan) {
-      console.error('No project plan provided')
-      return NextResponse.json({ 
-        error: 'Project plan data is required in request body' 
-      }, { status: 400 })
-    }
-
-    console.log('Generating Gantt chart...')
-    const workbook = await generateGanttChart(projectPlan)
-    
-    console.log('Converting to buffer...')
-    const buffer = await workbook.xlsx.writeBuffer()
-    
-    console.log('Gantt chart generation completed successfully')
-    return new NextResponse(buffer, {
-      headers: {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': 'attachment; filename="gantt-chart.xlsx"'
-      }
-    })
-  } catch (error: any) {
-    console.error('Gantt chart generation error:', error)
-    return NextResponse.json({ 
-      error: error.message,
-      details: error.code || 'unknown_error'
-    }, { status: 500 })
-  } finally {
-    console.groupEnd()
-  }
-} 

@@ -5,6 +5,8 @@ import { writeFile, readFile, unlink, mkdir } from 'fs/promises'
 import path from 'path'
 import OpenAI from 'openai'
 import { ProjectPlan } from '@/lib/types/survey'
+import { SurveyQuestion } from '@/data/surveyQuestions'
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 
 const execAsync = promisify(exec)
 const openai = new OpenAI({
@@ -122,4 +124,31 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
-} 
+}
+
+// Types
+interface SurveyResponse {
+  problem: string
+  solution: string
+  key_risks: string
+  deadline: string
+  budget: number
+  pricing_model: string
+}
+
+interface RoadmapPhase {
+  name: string
+  description: string
+  objectives: string[]
+  keyMetrics: string[]
+  timeline: string
+  budget: string
+  risks: string[]
+}
+
+interface RoadmapData {
+  overview: string
+  phases: RoadmapPhase[]
+  criticalPath: string[]
+  successMetrics: string[]
+}

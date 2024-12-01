@@ -1,259 +1,40 @@
 import { NextResponse } from 'next/server'
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
-import OpenAI from 'openai'
-import { ProjectPlan } from '@/lib/types/survey'
-import { Document, Paragraph, HeadingLevel, TextRun, Packer } from 'docx'
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { openai } from '@/lib/clients/openaiClient'
+import { SurveyQuestion } from '@/data/surveyQuestions'
+import fs from 'fs/promises'
+import path from 'path'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
-
-async function generateBusinessPlanContent(projectPlan: ProjectPlan) {
-  const prompt = `Create a clear and engaging business plan that anyone can understand:
-    ${JSON.stringify(projectPlan, null, 2)}
-
-    Key principles:
-    1. Write in a conversational, friendly tone
-    2. Use real-world examples and comparisons
-    3. Break down complex ideas into simple steps
-    4. Focus on practical, achievable actions
-    5. Explain the 'why' behind each decision
-
-    Structure the content in these sections:
-    1. Executive Summary (A clear overview anyone can understand)
-    2. The Big Idea (What you're building and why it matters)
-    3. Understanding Your Market (Who needs this and why)
-    4. How It Works (Simple explanation of your product/service)
-    5. Your Game Plan (Clear steps to make it happen)
-    6. Growth Strategy (Practical ways to expand)
-    7. Money Matters (Simple breakdown of costs and earnings)
-    8. Next Steps (Clear action items)
-
-    Make it engaging and practical - like you're explaining your plan to a friend who's interested in your business.`
-
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
-    messages: [
-      {
-        role: "system",
-        content: "You are a friendly business advisor who explains complex ideas in simple, clear terms. Write like you're having a conversation, avoiding jargon and making everything practical and understandable."
-      },
-      {
-        role: "user",
-        content: prompt
-      }
-    ],
-    temperature: 0.7,
-  })
-
-  const response = completion.choices[0].message.content || ''
-  return extractSections(response)
+interface SurveyResponse {
+  problem: string
+  solution: string
+  key_risks: string
+  deadline: string
+  budget: number
+  pricing_model: string
 }
 
-function extractSections(text: string) {
-  const sectionTitles = [
-    'Executive Summary',
-    'Company Description',
-    'Market Analysis',
-    'Organization and Management',
-    'Service or Product Line',
-    'Marketing and Sales Strategy',
-    'Financial Projections',
-    'Growth Strategy'
-  ]
-  
-  const sections: Record<string, string> = {}
-  
-  sectionTitles.forEach((title, index) => {
-    const nextTitle = sectionTitles[index + 1]
-    const regex = new RegExp(`${title}.*?${nextTitle ? `(?=${nextTitle})` : '$'}`, 's')
-    const match = text.match(regex)
-    if (match) {
-      sections[title.toLowerCase().replace(/\s+/g, '')] = match[0]
-        .replace(title, '')
-        .trim()
-        .replace(/[^\x00-\x7F]/g, '') // Remove non-ASCII characters
-    }
-  })
-  
-  return sections
-}
-
-function drawPageBackground(page: PDFPage) {
-  const { width, height } = page.getSize()
-  page.drawRectangle({
-    x: 0,
-    y: 0,
-    width,
-    height,
-    color: rgb(1, 1, 1) // White background
-  })
-}
-
-function drawSectionHeader(page: PDFPage, text: string, y: number, font: PDFFont) {
-  const { width } = page.getSize()
-  
-  // Draw header background
-  page.drawRectangle({
-    x: 0,
-    y: y - 10,
-    width,
-    height: 40,
-    color: rgb(0.95, 0.95, 0.95)
-  })
-
-  // Draw green accent line
-  page.drawRectangle({
-    x: 40,
-    y: y - 5,
-    width: 3,
-    height: 30,
-    color: rgb(0.2, 0.83, 0.6)
-  })
-
-  // Draw header text
-  page.drawText(text, {
-    x: 50,
-    y,
-    size: 18,
-    font,
-    color: rgb(0, 0, 0)
-  })
-}
-
-function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: number): string[] {
-  const words = text.split(' ')
-  const lines: string[] = []
-  let currentLine = ''
-
-  for (const word of words) {
-    const testLine = currentLine ? `${currentLine} ${word}` : word
-    const width = font.widthOfTextAtSize(testLine, fontSize)
-
-    if (width <= maxWidth) {
-      currentLine = testLine
-    } else {
-      if (currentLine) lines.push(currentLine)
-      currentLine = word
-    }
-  }
-  
-  if (currentLine) {
-    lines.push(currentLine)
-  }
-
-  return lines
-}
-
-async function generateDocx(sections: any) {
-  const doc = new Document({
-    sections: [{
-      properties: {},
-      children: [
-        new Paragraph({
-          text: "Business Plan",
-          heading: HeadingLevel.TITLE,
-        }),
-        // Executive Summary
-        new Paragraph({
-          text: "1. Executive Summary",
-          heading: HeadingLevel.HEADING_1,
-          spacing: { before: 400, after: 200 }
-        }),
-        new Paragraph({
-          children: [new TextRun({ text: sections.executiveSummary || '' })],
-          spacing: { after: 200 }
-        }),
-        // Company Description
-        new Paragraph({
-          text: "2. Company Description",
-          heading: HeadingLevel.HEADING_1,
-          spacing: { before: 400, after: 200 }
-        }),
-        new Paragraph({
-          children: [new TextRun({ text: sections.companyDescription || '' })],
-          spacing: { after: 200 }
-        }),
-        // Market Analysis
-        new Paragraph({
-          text: "3. Market Analysis",
-          heading: HeadingLevel.HEADING_1,
-          spacing: { before: 400, after: 200 }
-        }),
-        new Paragraph({
-          children: [new TextRun({ text: sections.marketAnalysis || '' })],
-          spacing: { after: 200 }
-        }),
-        // Organization and Management
-        new Paragraph({
-          text: "4. Organization and Management",
-          heading: HeadingLevel.HEADING_1,
-          spacing: { before: 400, after: 200 }
-        }),
-        new Paragraph({
-          children: [new TextRun({ text: sections.organizationAndManagement || '' })],
-          spacing: { after: 200 }
-        }),
-        // Service or Product Line
-        new Paragraph({
-          text: "5. Service or Product Line",
-          heading: HeadingLevel.HEADING_1,
-          spacing: { before: 400, after: 200 }
-        }),
-        new Paragraph({
-          children: [new TextRun({ text: sections.serviceOrProductLine || '' })],
-          spacing: { after: 200 }
-        }),
-        // Marketing and Sales Strategy
-        new Paragraph({
-          text: "6. Marketing and Sales Strategy",
-          heading: HeadingLevel.HEADING_1,
-          spacing: { before: 400, after: 200 }
-        }),
-        new Paragraph({
-          children: [new TextRun({ text: sections.marketingAndSales || '' })],
-          spacing: { after: 200 }
-        }),
-        // Financial Projections
-        new Paragraph({
-          text: "7. Financial Projections",
-          heading: HeadingLevel.HEADING_1,
-          spacing: { before: 400, after: 200 }
-        }),
-        new Paragraph({
-          children: [new TextRun({ text: sections.financialProjections || '' })],
-          spacing: { after: 200 }
-        }),
-        // Growth Strategy
-        new Paragraph({
-          text: "8. Growth Strategy",
-          heading: HeadingLevel.HEADING_1,
-          spacing: { before: 400, after: 200 }
-        }),
-        new Paragraph({
-          children: [new TextRun({ text: sections.growthStrategy || '' })],
-          spacing: { after: 200 }
-        }),
-      ],
-    }],
-  })
-
-  return await Packer.toBuffer(doc)
+interface BusinessPlanContent {
+  [key: string]: string
 }
 
 export async function POST(request: Request) {
   try {
-    const { projectPlan } = await request.json()
-    if (!projectPlan) {
-      console.error('Missing project plan in request')
+    const { responses, questions } = await request.json() as {
+      responses: SurveyResponse
+      questions: SurveyQuestion[]
+    }
+
+    if (!responses || !questions) {
+      console.error('Missing survey responses or questions in request')
       return NextResponse.json(
-        { error: 'Project plan is required' },
+        { error: 'Survey responses and questions are required' },
         { status: 400 }
       )
     }
 
     console.log('Generating business plan content...')
-    const businessPlanContent = await generateBusinessPlanContent(projectPlan)
+    const businessPlanContent = await generateBusinessPlanContent(responses, questions)
     
     if (!businessPlanContent || Object.keys(businessPlanContent).length === 0) {
       console.error('Failed to generate business plan content')
@@ -268,127 +49,188 @@ export async function POST(request: Request) {
     const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman)
     const timesRomanBoldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold)
 
+    // Load and embed the logo
+    const logoPath = path.join(process.cwd(), 'public', 'logo-square.png')
+    const logoBytes = await fs.readFile(logoPath)
+    const logoImage = await pdfDoc.embedPng(logoBytes)
+    const logoScale = 0.15 // Adjust this value to change logo size
+
     // Add title page
     let page = pdfDoc.addPage([595, 842]) // A4 size
-    const { height } = page.getSize()
-    drawPageBackground(page)
+    const { width, height } = page.getSize()
+
+    // Draw logo on cover
+    const logoDims = logoImage.scale(logoScale)
+    page.drawImage(logoImage, {
+      x: 50,
+      y: height - 100,
+      width: logoDims.width,
+      height: logoDims.height,
+    })
 
     // Title with green underline
     page.drawText('Business Plan', {
-      x: 50,
-      y: height - 100,
+      x: 50 + logoDims.width + 20,
+      y: height - 80,
       size: 36,
       font: timesRomanBoldFont,
       color: rgb(0, 0, 0)
     })
 
-    // Green underline for title
-    page.drawRectangle({
-      x: 50,
-      y: height - 110,
-      width: 200,
-      height: 3,
-      color: rgb(0.2, 0.83, 0.6)
-    })
-
-    // Company name
-    page.drawText(projectPlan.companyName || 'Company Name', {
-      x: 50,
-      y: height - 150,
-      size: 24,
+    // Company name in footer
+    page.drawText('launchbooster.io', {
+      x: width - 150,
+      y: 30,
+      size: 12,
       font: timesRomanFont,
-      color: rgb(0.4, 0.4, 0.4)
+      color: rgb(0.6, 0.6, 0.6)
     })
 
-    // Add sections
-    const sections = [
-      { title: 'Executive Summary', content: businessPlanContent.executiveSummary },
-      { title: 'Company Description', content: businessPlanContent.companyDescription },
-      { title: 'Market Analysis', content: businessPlanContent.marketAnalysis },
-      { title: 'Organization and Management', content: businessPlanContent.organizationAndManagement },
-      { title: 'Service or Product Line', content: businessPlanContent.serviceOrProductLine },
-      { title: 'Marketing and Sales Strategy', content: businessPlanContent.marketingAndSales },
-      { title: 'Financial Projections', content: businessPlanContent.financialProjections },
-      { title: 'Growth Strategy', content: businessPlanContent.growthStrategy }
-    ]
-
-    for (const section of sections) {
+    // Add content pages
+    Object.entries(businessPlanContent).forEach(([section, content]) => {
       page = pdfDoc.addPage([595, 842])
-      drawPageBackground(page)
+      
+      // Draw small logo in top-left corner
+      const smallLogoScale = 0.08
+      const smallLogoDims = logoImage.scale(smallLogoScale)
+      page.drawImage(logoImage, {
+        x: 50,
+        y: height - 50,
+        width: smallLogoDims.width,
+        height: smallLogoDims.height,
+      })
 
-      // Draw section header with styling
-      drawSectionHeader(page, section.title, height - 50, timesRomanBoldFont)
+      // Section title
+      page.drawText(section, {
+        x: 50 + smallLogoDims.width + 20,
+        y: height - 50,
+        size: 24,
+        font: timesRomanBoldFont,
+        color: rgb(0, 0, 0)
+      })
 
-      // Section content
-      const contentLines = (section.content || '').split('\n')
-      let y = height - 100
-      const maxWidth = 495 // 595 (page width) - 100 (margins)
-
-      contentLines.forEach((paragraph: string) => {
-        // Skip empty paragraphs
-        if (!paragraph.trim()) {
-          y -= 20
-          return
-        }
-
-        // Wrap the paragraph text
-        const wrappedLines = wrapText(paragraph.trim(), timesRomanFont, 12, maxWidth)
-
-        for (const line of wrappedLines) {
-          if (y < 50) {
-            page = pdfDoc.addPage([595, 842])
-            drawPageBackground(page)
-            y = height - 50
-          }
-
+      // Section content with word wrap
+      const words = content.split(' ')
+      let line = ''
+      let yPosition = height - 100
+      
+      words.forEach((word: string) => {
+        const testLine = line + word + ' '
+        const textWidth = timesRomanFont.widthOfTextAtSize(testLine, 12)
+        
+        if (textWidth > 495) { // Page width minus margins
           page.drawText(line, {
             x: 50,
-            y,
+            y: yPosition,
             size: 12,
             font: timesRomanFont,
             color: rgb(0, 0, 0)
           })
-
-          y -= 20
+          line = word + ' '
+          yPosition -= 20
+          
+          // Add new page if needed
+          if (yPosition < 50) {
+            page = pdfDoc.addPage([595, 842])
+            
+            // Add logo and footer to new page
+            page.drawImage(logoImage, {
+              x: 50,
+              y: height - 50,
+              width: smallLogoDims.width,
+              height: smallLogoDims.height,
+            })
+            
+            page.drawText('launchbooster.io', {
+              x: width - 150,
+              y: 30,
+              size: 12,
+              font: timesRomanFont,
+              color: rgb(0.6, 0.6, 0.6)
+            })
+            
+            yPosition = height - 50
+          }
+        } else {
+          line = testLine
         }
-
-        // Add extra space after each paragraph
-        y -= 10
       })
-    }
+      
+      // Draw remaining text
+      if (line.trim().length > 0) {
+        page.drawText(line, {
+          x: 50,
+          y: yPosition,
+          size: 12,
+          font: timesRomanFont,
+          color: rgb(0, 0, 0)
+        })
+      }
 
-    const pdfBytes = await pdfDoc.save()
-    const pdfBuffer = Buffer.from(pdfBytes)
-
-    console.log('Generating DOCX document...')
-    const docxBuffer = await generateDocx(businessPlanContent)
-
-    if (!docxBuffer || !pdfBuffer) {
-      console.error('Failed to generate document buffers')
-      return NextResponse.json(
-        { error: 'Failed to generate documents' },
-        { status: 500 }
-      )
-    }
-
-    console.log('Creating form data response...')
-    const formData = new FormData()
-    formData.append('pdf', new Blob([pdfBuffer], { type: 'application/pdf' }), 'business-plan.pdf')
-    formData.append('docx', new Blob([docxBuffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }), 'business-plan.docx')
-
-    console.log('Sending response...')
-    return new Response(formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data; boundary=' + Math.random().toString().substring(2),
-      },
+      // Add footer with company name
+      page.drawText('launchbooster.io', {
+        x: width - 150,
+        y: 30,
+        size: 12,
+        font: timesRomanFont,
+        color: rgb(0.6, 0.6, 0.6)
+      })
     })
 
+    const pdfBytes = await pdfDoc.save()
+    
+    return new Response(pdfBytes, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': 'attachment; filename="business-plan.pdf"'
+      }
+    })
   } catch (error: any) {
     console.error('Error generating business plan:', error)
-    console.error('Error stack:', error.stack)
     return NextResponse.json(
       { error: error.message || 'Failed to generate business plan' },
       { status: 500 }
     )
   }
+}
+
+async function generateBusinessPlanContent(responses: SurveyResponse, questions: SurveyQuestion[]): Promise<BusinessPlanContent> {
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4-1106-preview",
+    messages: [
+      {
+        role: "system",
+        content: "You are an expert business plan writer. Create a professional business plan based on the survey responses provided. Focus on clarity, actionable insights, and realistic projections."
+      },
+      {
+        role: "user",
+        content: `Create a detailed business plan based on these survey responses:
+
+Questions and Answers:
+${questions.map(q => `
+Q: ${q.question}
+A: ${responses[q.fieldName as keyof SurveyResponse]}
+Context: ${q.guidance.title}
+- ${q.guidance.items.map(item => item.text).join('\n- ')}
+`).join('\n')}
+
+Generate a comprehensive business plan with the following sections:
+1. Executive Summary
+2. Problem Statement
+3. Solution Overview
+4. Market Analysis
+5. Business Model
+6. Financial Projections
+7. Risk Analysis
+8. Implementation Timeline
+
+Format the response as a JSON object with these section names as keys and detailed content as values.
+Keep the content professional, actionable, and grounded in the survey responses.`
+      }
+    ],
+    temperature: 0.7,
+    response_format: { type: "json_object" }
+  })
+
+  return JSON.parse(completion.choices[0].message.content || '{}')
 } 
