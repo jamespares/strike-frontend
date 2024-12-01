@@ -47,15 +47,15 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center">
-              <div className="flex-shrink-0 w-14 h-14 mr-4">
+              <div className="flex-shrink-0 h-10 w-auto flex items-center">
                 <img
                   src="/logo-square.png"
                   alt="Strike Logo"
-                  className="w-full h-full object-contain"
+                  className="h-full w-auto object-contain"
                 />
               </div>
-              <span className="text-2xl font-bold text-gray-900 relative inline-block">
-                launchboost.me
+              <span className="text-2xl font-bold text-gray-900 relative inline-block ml-3">
+                launchbooster.io
                 <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
                               transform -rotate-1 translate-y-1"></div>
               </span>
@@ -86,20 +86,19 @@ export default function Home() {
             <div className="sm:text-center md:max-w-2xl md:mx-auto lg:col-span-6 lg:text-left">
               <h1 className="text-4xl tracking-tight font-extrabold sm:text-5xl xl:text-6xl">
                 <span className="block text-gray-900 relative inline-block">
-                  Transform Your
+                  Got a business idea?
                   <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
                                 transform -rotate-1 translate-y-1"></div>
                 </span>
-                <span className="block text-emerald-500 mt-2">Business Idea</span>
+                <span className="block text-emerald-500 mt-2">Not sure where to start?</span>
                 <span className="block text-gray-900 relative inline-block mt-2">
-                  Into Reality
+                  You're in the right place.
                   <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
                                 transform -rotate-1 translate-y-1"></div>
                 </span>
               </h1>
               <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-xl lg:text-lg xl:text-xl">
-                Launch Boost helps you turn your business idea into a concrete plan with AI-powered tools, 
-                custom roadmaps, and expert guidance every step of the way.
+                Our guided process helps you evaluate your idea, create a concrete plan, and generate a bespoke pitch deck so you can get your idea off the ground.
               </p>
               <div className="mt-8 sm:max-w-lg sm:mx-auto sm:text-center lg:text-left">
                 <button
@@ -108,7 +107,7 @@ export default function Home() {
                            hover:bg-emerald-600 transform hover:scale-105 active:scale-95
                            transition duration-200 ease-in-out shadow-sm"
                 >
-                  Begin Your Journey
+                  Activate Founder Mode
                 </button>
               </div>
             </div>
@@ -135,41 +134,57 @@ export default function Home() {
                             transform -rotate-1 translate-y-1"></div>
             </h2>
             <p className="mt-4 text-xl text-gray-500">
-              Our comprehensive toolkit provides everything you need to plan, launch, and grow your business.
+              Using frameworks from leading accelerators and VCs
             </p>
+            <div className="mt-6 flex justify-center items-center space-x-16">
+              <div className="h-14 flex items-center grayscale hover:grayscale-0 transition-all duration-200">
+                <img 
+                  src="/y-combinator-logo.png" 
+                  alt="Y Combinator" 
+                  className="h-full w-auto object-contain" 
+                />
+              </div>
+              <div className="h-14 w-32 flex items-center grayscale hover:grayscale-0 transition-all duration-200 overflow-hidden">
+                <img 
+                  src="/sequoia-logo.png" 
+                  alt="Sequoia Capital" 
+                  className="h-[80%] w-auto object-contain -ml-1" 
+                />
+              </div>
+            </div>
           </div>
 
           <div className="mt-20 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
             {[
               {
-                icon: "⚔️",
-                title: "Custom Road Map",
-                description: "Get a detailed, step-by-step plan tailored to your business idea"
+                icon: "🎯",
+                title: "Guided Validation",
+                description: "Answer Y Combinator-inspired questions to validate and refine your business idea"
               },
               {
-                icon: "📜",
-                title: "Timeline & Tasks",
-                description: "Organized timeline with all your tasks and milestones"
+                icon: "🗺️",
+                title: "Clear Roadmap",
+                description: "Get a step-by-step plan that breaks down complex tasks into manageable actions"
               },
               {
-                icon: "💰",
-                title: "Budget Tracker",
-                description: "Track expenses and forecast profitability with our budget tools"
+                icon: "📊",
+                title: "Budget Planning",
+                description: "Simple tools to plan your finances, even if you're new to business budgeting"
               },
               {
-                icon: "🛡️",
-                title: "Risk Management",
-                description: "Identify and mitigate risks with our comprehensive risk log"
+                icon: "⚠️",
+                title: "Risk Assessment",
+                description: "Identify potential challenges before they become problems"
               },
               {
-                icon: "📄",
-                title: "Pitch Deck Generator",
-                description: "Create professional pitch decks to present to investors"
+                icon: "🎭",
+                title: "Professional Pitch Deck",
+                description: "Generate a Sequoia Capital-style pitch deck that investors love"
               },
               {
                 icon: "🤝",
                 title: "24/7 Support",
-                description: "Multi-lingual support to help you every step of the way"
+                description: "Get help whenever you need it - you're not alone in this journey"
               }
             ].map((feature, index) => (
               <div key={index} className="relative p-6 bg-white rounded-lg shadow-sm border border-gray-200">
@@ -228,7 +243,7 @@ export default function Home() {
                        transform hover:scale-105 active:scale-95
                        transition duration-200 ease-in-out shadow-sm gap-2"
             >
-              <span>Try It Yourself</span>
+              <span>Try It</span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
@@ -255,7 +270,7 @@ export default function Home() {
             <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
               <div className="p-8">
                 <h3 className="text-2xl font-semibold text-gray-900 relative inline-block">
-                  Business Toolkit
+                  Business Launch Toolkit
                   <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
                 </h3>
                 <p className="mt-4 text-gray-500">Everything you need to launch your business</p>
@@ -297,7 +312,7 @@ export default function Home() {
                            hover:bg-emerald-600 transform hover:scale-105 active:scale-95
                            transition duration-200 ease-in-out shadow-sm"
                 >
-                  Generate Your Toolkit
+                  Generate Now →
                 </button>
               </div>
             </div>
@@ -305,7 +320,7 @@ export default function Home() {
             <div className="mt-8 text-center">
               <p className="text-gray-500">Need multiple toolkits or custom solutions?</p>
               <a href="#" className="text-emerald-500 hover:text-emerald-400 mt-2 inline-block">
-                Contact us for volume pricing →
+                Contact us for pricing →
               </a>
             </div>
           </div>

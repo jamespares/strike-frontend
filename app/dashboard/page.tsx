@@ -260,25 +260,13 @@ export default function Dashboard() {
         <div className="mb-8">
           <a href="/" className="block">
             <h1 className="text-2xl font-bold text-gray-900 relative inline-block">
-              Strike
+              launchbooster.io
               <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
                             transform -rotate-1 translate-y-1"></div>
             </h1>
           </a>
         </div>
         <nav className="space-y-4">
-          <a href="#" className="flex items-center space-x-2 text-gray-900 font-medium">
-            <span>Dashboard</span>
-          </a>
-          <a href="#" className="flex items-center space-x-2 text-gray-500 hover:text-gray-900">
-            <span>Project Plan</span>
-          </a>
-          <a href="#" className="flex items-center space-x-2 text-gray-500 hover:text-gray-900">
-            <span>Roadmap</span>
-          </a>
-          <a href="#" className="flex items-center space-x-2 text-gray-500 hover:text-gray-900">
-            <span>Documents</span>
-          </a>
         </nav>
         <div className="mt-auto">
           {user && (
@@ -301,19 +289,21 @@ export default function Dashboard() {
                 <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
                               transform -rotate-1 translate-y-1"></div>
               </h2>
-              <p className="text-gray-500 mt-2">Manage your project assets and documentation</p>
+              <p className="text-gray-500 mt-2">Manage your tools and documents</p>
             </div>
-            <a 
-              href="/survey/1"
-              className="inline-flex items-center space-x-2 px-6 py-3 bg-emerald-500 text-white rounded-lg text-sm font-medium
-                       hover:bg-emerald-600 transform hover:scale-105 active:scale-95
-                       transition duration-200 ease-in-out shadow-sm"
-            >
-              <span>Generate New Toolkit</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-              </svg>
-            </a>
+            {generationStatus === AssetGenerationStatus.COMPLETED && (
+              <a 
+                href="/survey/1"
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-emerald-500 text-white rounded-lg text-sm font-medium
+                         hover:bg-emerald-600 transform hover:scale-105 active:scale-95
+                         transition duration-200 ease-in-out shadow-sm"
+              >
+                <span>Generate New Toolkit</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </a>
+            )}
           </header>
 
           {/* Quick Actions */}
@@ -321,10 +311,10 @@ export default function Dashboard() {
             <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200 mb-8">
               <div className="mb-6">
                 <h3 className="text-xl font-semibold text-gray-900 relative inline-block">
-                  Generate Project Assets
+                  Generate Launch Toolkit
                   <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
                 </h3>
-                <p className="mt-2 text-gray-500">Create your complete business toolkit with one click</p>
+                <p className="mt-2 text-gray-500">Create your complete business launch toolkit with one click</p>
               </div>
               <div className="flex flex-col space-y-4">
                 <button
@@ -334,7 +324,7 @@ export default function Dashboard() {
                            hover:bg-emerald-600 transform hover:scale-105 active:scale-95
                            transition duration-200 ease-in-out shadow-sm gap-2"
                 >
-                  <span>Generate All Assets</span>
+                  <span>Go</span>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                   </svg>
@@ -349,9 +339,8 @@ export default function Dashboard() {
            currentStep !== GenerationStep.FAILED && (
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-8">
               <div className="mb-6">
-                <h3 className="text-xl font-semibold text-gray-900 relative inline-block">
+                <h3 className="text-xl font-semibold text-gray-900">
                   Generating Assets
-                  <SquigglyUnderline />
                 </h3>
                 <p className="mt-2 text-gray-500">{stepMessages[currentStep]}</p>
               </div>

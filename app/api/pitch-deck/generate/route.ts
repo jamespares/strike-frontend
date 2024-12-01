@@ -63,18 +63,15 @@ async function createPowerPoint(content: any) {
   
   // Title slide
   const titleSlide = pres.addSlide()
-  titleSlide.addText([{
-    text: "Pitch Deck",
-    options: {
-      x: '10%',
-      y: '40%',
-      w: '80%',
-      fontSize: 44,
-      bold: true,
-      align: 'center',
-      color: '363636'
-    }
-  }])
+  titleSlide.addText("Pitch Deck", {
+    x: '10%',
+    y: '40%',
+    w: '80%',
+    fontSize: 44,
+    bold: true,
+    align: 'center',
+    color: '363636'
+  })
 
   // Content slides
   const sections = [
@@ -94,41 +91,30 @@ async function createPowerPoint(content: any) {
     const slide = pres.addSlide()
     
     // Add section title
-    slide.addText([{
-      text: section.title,
-      options: {
-        x: '5%',
-        y: '5%',
-        w: '90%',
-        h: '15%',
-        fontSize: 32,
-        bold: true,
-        color: '363636'
-      }
-    }])
+    slide.addText(section.title, {
+      x: '5%',
+      y: '5%',
+      w: '90%',
+      h: '15%',
+      fontSize: 32,
+      bold: true,
+      color: '363636'
+    })
 
     // Add bullet points
     const bulletPoints = Array.isArray(section.content) ? section.content : [section.content]
     
-    // Create text objects for each bullet point
-    const textObjects = bulletPoints.map(point => ({
-      text: point,
-      options: {
-        bullet: true,
-        indentLevel: 0,
+    // Add each bullet point as a separate text element
+    bulletPoints.forEach((point, index) => {
+      slide.addText(point, {
+        x: '7%',
+        y: `${25 + (index * 12)}%`,
+        w: '86%',
+        h: '10%',
         fontSize: 18,
-        color: '666666'
-      }
-    }))
-
-    // Add all bullet points at once
-    slide.addText(textObjects, {
-      x: '5%',
-      y: '25%',
-      w: '90%',
-      h: '70%',
-      align: 'left',
-      valign: 'top'
+        color: '666666',
+        bullet: { type: 'bullet' }
+      })
     })
   })
 

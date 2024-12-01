@@ -129,10 +129,8 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
             <div className="space-y-6">
-              <label className="text-3xl font-bold block leading-relaxed text-gray-900 relative inline-block">
+              <label className="text-3xl font-bold block leading-relaxed text-gray-900">
                 {question.question}
-                <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
-                              transform -rotate-1 translate-y-1"></div>
               </label>
               <div className="space-y-4">
                 <textarea
