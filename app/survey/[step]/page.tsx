@@ -28,6 +28,7 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
   })
   const { session } = useUser()
   const [mounted, setMounted] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const currentStep = parseInt(params.step)
   const question = surveyQuestions.find((q) => q.id === currentStep)
 
@@ -44,29 +45,20 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
 
   const onSubmit = async (data: FormData) => {
     try {
+      setIsSubmitting(true)
       if (!session?.user.id) {
         console.error('No user ID found')
         return
       }
 
-      // First get existing responses
-      const { data: existingData } = await supabase
-        .from('survey_responses')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .single()
-
-      // Merge existing data with new response
-      const updatedData = {
-        ...existingData,
-        user_id: session.user.id,
-        updated_at: new Date().toISOString(),
-        [question.fieldName]: data.answer
-      }
-
+      // Directly upsert the new response
       const { error } = await supabase
         .from('survey_responses')
-        .upsert(updatedData, {
+        .upsert({
+          user_id: session.user.id,
+          updated_at: new Date().toISOString(),
+          [question.fieldName]: data.answer
+        }, {
           onConflict: 'user_id'
         })
 
@@ -83,6 +75,8 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
       }
     } catch (err) {
       console.error('Error in form submission:', err)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -181,12 +175,25 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
               </div>
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="px-6 py-2.5 bg-emerald-500 text-white rounded-lg text-sm font-medium
                          hover:bg-emerald-600 transform hover:scale-105 active:scale-95
                          transition duration-200 ease-in-out shadow-sm
-                         flex items-center gap-2"
+                         flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {currentStep === surveyQuestions.length ? 'Complete' : 'Continue'} <span>→</span>
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    {currentStep === surveyQuestions.length ? 'Complete' : 'Continue'} <span>→</span>
+                  </>
+                )}
               </button>
             </div>
           </form>

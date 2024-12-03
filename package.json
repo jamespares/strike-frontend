@@ -10,7 +10,10 @@
     "test:flow": "node --loader ts-node/esm scripts/test-flow.ts"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^3.9.1",
+    "@puppeteer/browsers": "^2.5.0",
+    "@react-pdf/renderer": "^4.1.5",
     "@sendgrid/mail": "^8.1.4",
     "@sentry/nextjs": "^8.41.0",
     "@stripe/stripe-js": "^2.4.0",
@@ -26,9 +29,11 @@
     "lucide-react": "^0.460.0",
     "mermaid": "^11.4.0",
     "next": "^14.1.0",
+    "next-auth": "^4.24.10",
     "openai": "^4.73.1",
     "pdf-lib": "^1.17.1",
     "pptxgenjs": "^3.12.0",
+    "puppeteer-core": "^23.10.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.53.2",

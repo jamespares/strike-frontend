@@ -1,4 +1,3 @@
-
 export type Json =
   | string
   | number
@@ -64,7 +63,6 @@ export type Database = {
           key_risks: string | null
           pricing_model: string | null
           problem: string | null
-          solution: string | null
           updated_at: string | null
           user_id: string
         }
@@ -75,7 +73,6 @@ export type Database = {
           key_risks?: string | null
           pricing_model?: string | null
           problem?: string | null
-          solution?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -86,7 +83,6 @@ export type Database = {
           key_risks?: string | null
           pricing_model?: string | null
           problem?: string | null
-          solution?: string | null
           updated_at?: string | null
           user_id?: string
         }

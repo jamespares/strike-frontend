@@ -1,619 +1,509 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useUser } from '@/context/UserContext'
 import { useRouter } from 'next/navigation'
-import { createClientComponentClient, User } from '@supabase/auth-helpers-nextjs'
-import { AssetGenerationStatus } from '@/lib/types/assets'
-import { BusinessPlanDisplay } from '@/components/BusinessPlanDisplay'
-import { RoadmapDisplay } from '@/components/RoadmapDisplay'
-import { ProgressBar } from '@/components/ProgressBar'
-import { GanttDownloadButton } from '@/components/GanttDownloadButton'
-import { PitchDeckDownloadButton } from '@/components/PitchDeckDownloadButton'
+import Link from 'next/link'
+import { ArrowDownTrayIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline'
+import { supabase } from '@/lib/clients/supabaseClient'
+import { SurveyQuestion } from '@/data/surveyQuestions'
 
-const SquigglyUnderline = () => (
-  <svg
-    className="absolute -bottom-2 left-0 w-full"
-    viewBox="0 0 100 7"
-    preserveAspectRatio="none"
-    style={{ height: '0.5rem' }}
-  >
-    <path
-      d="M0,5 Q20,3.5 40,5 T80,5 T120,5"
-      stroke="rgb(52, 211, 153)"
-      strokeOpacity="0.3"
-      strokeWidth="4"
-      fill="none"
-    />
-  </svg>
-);
-
-enum GenerationStep {
-  NOT_STARTED = 'NOT_STARTED',
-  BUSINESS_PLAN = 'BUSINESS_PLAN',
-  ROADMAP = 'ROADMAP',
-  PITCH_DECK = 'PITCH_DECK',
-  GANTT_CHART = 'GANTT_CHART',
-  COMPLETED = 'COMPLETED',
-  FAILED = 'FAILED'
+interface Asset {
+  id: string
+  title: string
+  description: string
+  type: 'document' | 'spreadsheet' | 'presentation' | 'external'
+  path: string
+  lastUpdated: string
 }
 
-const stepMessages = {
-  [GenerationStep.NOT_STARTED]: 'Starting generation...',
-  [GenerationStep.BUSINESS_PLAN]: 'Creating your business plan...',
-  [GenerationStep.ROADMAP]: 'Generating project roadmap...',
-  [GenerationStep.PITCH_DECK]: 'Designing pitch deck...',
-  [GenerationStep.GANTT_CHART]: 'Building Gantt chart...',
-  [GenerationStep.COMPLETED]: 'All assets generated!',
-  [GenerationStep.FAILED]: 'Generation failed'
+interface SurveyResponse {
+  problem: string
+  key_risks: string
+  deadline: string
+  budget: string | number
+  pricing_model: string
+  user_id: string
+  created_at: string
+  updated_at: string
 }
 
-export default function Dashboard() {
-  const [user, setUser] = useState<User | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [generationStatus, setGenerationStatus] = useState(AssetGenerationStatus.NOT_STARTED)
-  const [currentStep, setCurrentStep] = useState<GenerationStep>(GenerationStep.NOT_STARTED)
-  const [businessPlan, setBusinessPlan] = useState<Blob | null>(null)
-  const [roadmap, setRoadmap] = useState<Blob | null>(null)
-  const [pitchDeck, setPitchDeck] = useState<Blob | null>(null)
-  const [ganttChart, setGanttChart] = useState<Blob | null>(null)
-  const supabase = createClientComponentClient()
+export default function DashboardPage() {
+  const { user, session } = useUser()
+  const router = useRouter()
+  const [isInitializing, setIsInitializing] = useState(true)
+  const [showModal, setShowModal] = useState(false)
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({})
+  const [generatedAssets, setGeneratedAssets] = useState<Record<string, boolean>>({})
+  const [surveyResponses, setSurveyResponses] = useState<SurveyResponse | null>(null)
+  const [surveyQuestions, setSurveyQuestions] = useState<SurveyQuestion[] | null>(null)
 
   useEffect(() => {
-    const getUser = async () => {
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
-      console.log('Current user:', currentUser)
-      setUser(currentUser)
+    // Check which assets have been generated
+    const checkGeneratedAssets = async () => {
+      const assetIds = ['idea-evaluation', 'business-plan', 'task-manager', 'budget-tracker', 'pitch-deck']
+      const states: Record<string, boolean> = {}
+      
+      for (const id of assetIds) {
+        try {
+          const response = await fetch(`/api/${id}/latest`)
+          states[id] = response.ok
+        } catch (error) {
+          states[id] = false
+        }
+      }
+      
+      setGeneratedAssets(states)
     }
-    getUser()
-  }, [supabase.auth])
 
-  const handleGenerateAssets = async () => {
-    if (!user?.id) {
-      console.log('No user found')
-      return
+    if (session) {
+      checkGeneratedAssets()
+    }
+  }, [session])
+
+  useEffect(() => {
+    // Add a small delay to allow Supabase to initialize
+    const timer = setTimeout(() => {
+      setIsInitializing(false)
+      if (!session) {
+        router.push('/login')
+      }
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [session, router])
+
+  useEffect(() => {
+    // Fetch survey responses and questions when session is available
+    const fetchSurveyData = async () => {
+      if (!session?.user?.email) return
+      
+      try {
+        console.log('Fetching survey data for user:', session.user.email)
+        
+        // Fetch survey responses
+        const { data: responses, error: responsesError } = await supabase
+          .from('survey_responses')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single()
+
+        if (responsesError) {
+          console.error('Error fetching survey responses:', responsesError)
+          throw responsesError
+        }
+        
+        console.log('Survey responses:', responses)
+        setSurveyResponses(responses)
+
+        // Import survey questions
+        const { surveyQuestions } = await import('@/data/surveyQuestions')
+        console.log('Survey questions loaded:', surveyQuestions.length)
+        setSurveyQuestions(surveyQuestions)
+      } catch (error) {
+        console.error('Error fetching survey data:', error)
+      }
     }
 
-    // Reset states at the start
-    setError(null)
-    setBusinessPlan(null)
-    setRoadmap(null)
-    setPitchDeck(null)
-    setGanttChart(null)
-    setGenerationStatus(AssetGenerationStatus.GENERATING_ASSETS)
-    setCurrentStep(GenerationStep.BUSINESS_PLAN)
+    fetchSurveyData()
+  }, [session])
 
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-pulse text-gray-500">Loading...</div>
+      </div>
+    )
+  }
+
+  if (!session) {
+    return null
+  }
+
+  const assets: Asset[] = [
+    {
+      id: 'idea-evaluation',
+      title: 'Idea Evaluation',
+      description: 'Comprehensive analysis of your business idea',
+      type: 'document',
+      path: '/idea-evaluation',
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: 'business-plan',
+      title: 'Business Plan',
+      description: 'Detailed business plan and strategy',
+      type: 'document',
+      path: '/business-plan',
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: 'task-manager',
+      title: 'Task Manager',
+      description: 'Project tasks and timeline tracking',
+      type: 'spreadsheet',
+      path: '/task-manager',
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: 'budget-tracker',
+      title: 'Budget Tracker',
+      description: 'Financial planning and cost management',
+      type: 'spreadsheet',
+      path: '/budget-tracker',
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: 'pitch-deck',
+      title: 'Pitch Deck',
+      description: 'Investor presentation and key metrics',
+      type: 'presentation',
+      path: '/pitch-deck',
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: 'coding-course',
+      title: "Don't know how to code? No problem! 🚀",
+      description: "Check out Marc Lou's popular course on coding essentials for entrepreneurs.",
+      type: 'external',
+      path: 'https://codefa.st/?via=james',
+      lastUpdated: new Date().toISOString()
+    }
+  ]
+
+  const handleDownload = async (assetId: string) => {
     try {
-      // Fetch survey responses from Supabase
-      const { data: surveyData, error: surveyError } = await supabase
-        .from('survey_responses')
-        .select('*')
-        .eq('user_id', user.id)
-        .single()
-
-      if (surveyError) {
-        console.error('Survey fetch error:', surveyError)
-        throw new Error('Failed to fetch survey responses')
-      }
-      if (!surveyData) {
-        console.error('No survey data found')
-        throw new Error('No survey responses found')
-      }
-
-      // Get survey questions to include context
-      const surveyQuestions = (await import('@/data/surveyQuestions')).surveyQuestions
-      const surveyContext = {
-        responses: surveyData,
-        questions: surveyQuestions
-      }
-
-      console.log('Found survey responses:', surveyData)
-
-      // Generate Business Plan PDF directly from survey responses
-      setCurrentStep(GenerationStep.BUSINESS_PLAN)
-      try {
-        const businessPlanResponse = await fetch('/api/business-plan/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(surveyContext),
-          credentials: 'include',
-        })
-
-        if (!businessPlanResponse.ok) {
-          const contentType = businessPlanResponse.headers.get('content-type')
-          if (contentType && contentType.includes('application/json')) {
-            const errorData = await businessPlanResponse.json()
-            throw new Error(errorData.error || 'Failed to generate business plan')
-          } else {
-            throw new Error(`Failed to generate business plan: ${businessPlanResponse.statusText}`)
-          }
-        }
-
-        const businessPlanBlob = await businessPlanResponse.blob()
-        setBusinessPlan(businessPlanBlob)
-        await new Promise(resolve => setTimeout(resolve, 1000))
-      } catch (error) {
-        console.error('Business Plan generation error:', error)
-        throw new Error('Failed to generate business plan')
-      }
-
-      // Generate Roadmap PDF directly from survey responses
-      setCurrentStep(GenerationStep.ROADMAP)
-      try {
-        const roadmapResponse = await fetch('/api/roadmap/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(surveyContext),
-          credentials: 'include',
-        })
-
-        if (!roadmapResponse.ok) {
-          const contentType = roadmapResponse.headers.get('content-type')
-          if (contentType && contentType.includes('application/json')) {
-            const errorData = await roadmapResponse.json()
-            throw new Error(errorData.error || 'Failed to generate roadmap')
-          } else {
-            throw new Error(`Failed to generate roadmap: ${roadmapResponse.statusText}`)
-          }
-        }
-
-        const roadmapBlob = await roadmapResponse.blob()
-        setRoadmap(roadmapBlob)
-        await new Promise(resolve => setTimeout(resolve, 1000))
-      } catch (error) {
-        console.error('Roadmap generation error:', error)
-        throw new Error('Failed to generate roadmap')
-      }
-
-      // Generate Pitch Deck PDF directly from survey responses
-      setCurrentStep(GenerationStep.PITCH_DECK)
-      try {
-        const pitchDeckResponse = await fetch('/api/pitch-deck/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(surveyContext),
-          credentials: 'include',
-        })
-
-        if (!pitchDeckResponse.ok) {
-          const contentType = pitchDeckResponse.headers.get('content-type')
-          if (contentType && contentType.includes('application/json')) {
-            const errorData = await pitchDeckResponse.json()
-            throw new Error(errorData.error || 'Failed to generate pitch deck')
-          } else {
-            throw new Error(`Failed to generate pitch deck: ${pitchDeckResponse.statusText}`)
-          }
-        }
-
-        const pitchDeckBlob = await pitchDeckResponse.blob()
-        setPitchDeck(pitchDeckBlob)
-        await new Promise(resolve => setTimeout(resolve, 1000))
-      } catch (error) {
-        console.error('Pitch Deck generation error:', error)
-        throw new Error('Failed to generate pitch deck')
-      }
-
-      // Generate Gantt Chart Excel directly from survey responses
-      setCurrentStep(GenerationStep.GANTT_CHART)
-      try {
-        const ganttResponse = await fetch('/api/gantt/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(surveyContext),
-          credentials: 'include',
-        })
-
-        if (!ganttResponse.ok) {
-          const contentType = ganttResponse.headers.get('content-type')
-          if (contentType && contentType.includes('application/json')) {
-            const errorData = await ganttResponse.json()
-            throw new Error(errorData.error || 'Failed to generate Gantt chart')
-          } else {
-            throw new Error(`Failed to generate Gantt chart: ${ganttResponse.statusText}`)
-          }
-        }
-
-        const ganttBlob = await ganttResponse.blob()
-        setGanttChart(ganttBlob)
-        await new Promise(resolve => setTimeout(resolve, 1000))
-      } catch (error) {
-        console.error('Gantt Chart generation error:', error)
-        throw new Error('Failed to generate Gantt chart')
-      }
-
-      setCurrentStep(GenerationStep.COMPLETED)
-      setGenerationStatus(AssetGenerationStatus.COMPLETED)
-    } catch (err) {
-      console.error('Error generating assets:', err)
-      setError(err instanceof Error ? err.message : 'An unknown error occurred')
-      setCurrentStep(GenerationStep.FAILED)
-      setGenerationStatus(AssetGenerationStatus.FAILED)
+      const response = await fetch(`/api/${assetId}/download`)
+      if (!response.ok) throw new Error('Failed to download')
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${assetId}.${getFileExtension(assetId)}`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Error downloading:', error)
     }
   }
 
-  const getProgressPercentage = () => {
-    const steps = Object.values(GenerationStep)
-    const activeStepIndex = steps.indexOf(currentStep)
-    const totalSteps = steps.length - 3 // Subtract NOT_STARTED, COMPLETED, and FAILED
-    if (currentStep === GenerationStep.COMPLETED) return 100
-    if (currentStep === GenerationStep.NOT_STARTED) return 0
-    if (currentStep === GenerationStep.FAILED) return 0
-    return Math.round((activeStepIndex / totalSteps) * 100)
+  const getFileExtension = (assetId: string) => {
+    switch (assetId) {
+      case 'task-manager':
+      case 'budget-tracker':
+        return 'xlsx'
+      case 'pitch-deck':
+        return 'pptx'
+      default:
+        return 'pdf'
+    }
   }
 
-  const handleDownload = (data: Blob, filename: string) => {
-    if (!data) {
-      console.error('No data available for download')
+  const handleNewProject = () => {
+    setShowModal(true)
+  }
+
+  const handleConfirmNewProject = () => {
+    setShowModal(false)
+    router.push('/survey/1')
+  }
+
+  const handleGenerate = async (assetId: string) => {
+    console.log('Starting generation for:', assetId)
+    console.log('Survey responses:', surveyResponses)
+    console.log('Survey questions:', surveyQuestions)
+
+    if (!surveyResponses || !surveyQuestions) {
+      console.error('Survey data not available')
+      // Show error message to user
+      alert('Please complete the survey first')
+      router.push('/survey/1')
       return
     }
+
+    setLoadingStates(prev => ({ ...prev, [assetId]: true }))
     
     try {
-      const url = URL.createObjectURL(data)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = filename
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      console.log(`Making request to /api/${assetId}/generate`)
+      const response = await fetch(`/api/${assetId}/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          responses: surveyResponses,
+          questions: surveyQuestions
+        })
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error(`Generation failed:`, errorData)
+        throw new Error(errorData.error || 'Generation failed')
+      }
+      
+      const result = await response.json()
+      console.log('Generation successful:', result)
+      
+      setGeneratedAssets(prev => ({ ...prev, [assetId]: true }))
     } catch (error) {
-      console.error('Error downloading file:', error)
+      console.error(`Error generating ${assetId}:`, error)
+      alert(`Failed to generate ${assetId}. Please try again.`)
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [assetId]: false }))
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 p-6 flex flex-col fixed h-full overflow-y-auto">
-        <div className="mb-8">
-          <a href="/" className="block">
-            <h1 className="text-2xl font-bold text-gray-900 relative inline-block">
-              launchbooster.io
-              <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
-                            transform -rotate-1 translate-y-1"></div>
-            </h1>
-          </a>
-        </div>
-        <nav className="space-y-6 flex-1">
-          <div>
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Tools & Resources</h3>
-            <ul className="space-y-2">
-              <li>
-                <a 
-                  href="https://www.cursor.com/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-gray-600 hover:text-emerald-500 flex items-center gap-2 group"
-                >
-                  <span className="w-1.5 h-1.5 bg-gray-300 rounded-full group-hover:bg-emerald-500 transition-colors"></span>
-                  Cursor AI
-                </a>
-              </li>
-              <li>
-                <a 
-                  href="https://lovable.dev" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-gray-600 hover:text-emerald-500 flex items-center gap-2 group"
-                >
-                  <span className="w-1.5 h-1.5 bg-gray-300 rounded-full group-hover:bg-emerald-500 transition-colors"></span>
-                  Lovable.dev
-                </a>
-              </li>
-              <li>
-                <a 
-                  href="https://v0.dev" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-gray-600 hover:text-emerald-500 flex items-center gap-2 group"
-                >
-                  <span className="w-1.5 h-1.5 bg-gray-300 rounded-full group-hover:bg-emerald-500 transition-colors"></span>
-                  V0.dev
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Boilerplates</h3>
-            <ul className="space-y-2">
-              <li>
-                <a 
-                  href="https://github.com/saasbase/open-source-saas-boilerplates" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-gray-600 hover:text-emerald-500 flex items-center gap-2 group"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                  </svg>
-                  <span>Complete SaaS Template</span>
-                </a>
-              </li>
-              <li>
-                <a 
-                  href="https://github.com/nextjs-landing-page" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-gray-600 hover:text-emerald-500 flex items-center gap-2 group"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                  </svg>
-                  <span>Landing Page Template</span>
-                </a>
-              </li>
-              <li>
-                <a 
-                  href="https://github.com/react-native-boilerplate" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-gray-600 hover:text-emerald-500 flex items-center gap-2 group"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                  </svg>
-                  <span>React Native Boilerplate</span>
-                </a>
-              </li>
-              <li>
-                <a 
-                  href="https://github.com/wasp-lang/open-saas" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-gray-600 hover:text-emerald-500 flex items-center gap-2 group"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                  </svg>
-                  <span>Open SaaS</span>
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Learning</h3>
-            <div className="space-y-4">
-              <a 
-                href="https://www.youtube.com/watch?v=Th8JoIan4dg" 
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-gray-600 hover:text-emerald-500 flex items-center gap-2 group"
-              >
-                <span className="w-1.5 h-1.5 bg-gray-300 rounded-full group-hover:bg-emerald-500 transition-colors"></span>
-                <span>Evaluating Startup Ideas</span>
-              </a>
-              <a 
-                href="https://www.youtube.com/watch?v=QRZ_l7cVzzU" 
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-gray-600 hover:text-emerald-500 flex items-center gap-2 group"
-              >
-                <span className="w-1.5 h-1.5 bg-gray-300 rounded-full group-hover:bg-emerald-500 transition-colors"></span>
-                <span>Building an MVP</span>
-              </a>
-              <a 
-                href="https://marclou.beehiiv.com/p/how-to-get-your-1st-customer-for-a-micro-saas" 
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-gray-600 hover:text-emerald-500 flex items-center gap-2 group"
-              >
-                <span className="w-1.5 h-1.5 bg-gray-300 rounded-full group-hover:bg-emerald-500 transition-colors"></span>
-                <span>Getting Your First Customer</span>
-              </a>
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <nav className="border-b border-gray-200 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16 items-center">
+            <div className="flex items-center">
+              <Link href="/" className="flex items-center">
+                <div className="flex-shrink-0 h-10 w-auto flex items-center">
+                  <img
+                    src="/logo-square.png"
+                    alt="Strike Logo"
+                    className="h-full w-auto object-contain"
+                  />
+                </div>
+                <span className="text-2xl font-bold text-gray-900 relative inline-block ml-3">
+                  launchbooster.io
+                  <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
+                                transform -rotate-1 translate-y-1"></div>
+                </span>
+              </Link>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-500">
+                {user?.email}
+              </span>
             </div>
           </div>
-        </nav>
-        <div className="mt-8">
-          <a 
-            href="https://codefa.st/?via=james" 
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block p-4 bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg 
-                     hover:from-orange-100 hover:to-orange-150 transition-colors group mb-6"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                </svg>
-              </div>
-              <span className="font-medium text-gray-900">Can't code?</span>
-            </div>
-            <p className="text-sm text-gray-600 ml-11">Check out this streamlined course from indie hacking legend, Marc Lou</p>
-          </a>
-
-          <div className="pt-6 border-t border-gray-200">
-            {user && (
-              <div className="text-sm">
-                <p className="text-gray-500">Signed in as:</p>
-                <p className="text-gray-900 font-medium mt-1">{user.email}</p>
-              </div>
-            )}
-          </div>
         </div>
-      </aside>
+      </nav>
 
       {/* Main Content */}
-      <main className="ml-64 p-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <header className="mb-8 flex justify-between items-start">
-            <div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Sidebar */}
+          <div className="w-full lg:w-80 flex-shrink-0 space-y-4">
+            {/* AI Tools Section */}
+            <div className="bg-white shadow rounded-lg p-4">
+              <div className="space-y-4">
+                {/* AI Tools */}
+                <div>
+                  <h2 className="text-sm font-medium text-gray-900 mb-2 relative inline-block">
+                    AI Tools
+                    <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
+                  </h2>
+                  <nav className="space-y-1">
+                    <a href="https://cursor.sh" target="_blank" rel="noopener noreferrer"
+                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                      Cursor AI <span className="text-xs text-gray-500">- AI code editor</span>
+                    </a>
+                    <a href="https://lovable.dev" target="_blank" rel="noopener noreferrer"
+                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                      lovable.dev <span className="text-xs text-gray-500">- Product builder</span>
+                    </a>
+                    <a href="https://v0.dev" target="_blank" rel="noopener noreferrer"
+                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                      V0.dev <span className="text-xs text-gray-500">- AI UI generation</span>
+                    </a>
+                    <a href="https://www.producthunt.com" target="_blank" rel="noopener noreferrer"
+                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                      Product Hunt <span className="text-xs text-gray-500">- Launch platform</span>
+                    </a>
+                  </nav>
+                </div>
+
+                {/* Boilerplates */}
+                <div>
+                  <h2 className="text-sm font-medium text-gray-900 mb-2 relative inline-block">
+                    Boilerplates
+                    <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
+                  </h2>
+                  <nav className="space-y-1">
+                    <a href="https://github.com/ixartz/SaaS-Boilerplate" target="_blank" rel="noopener noreferrer"
+                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                      SaaS Boilerplate <span className="text-xs text-gray-500">- Quick setup</span>
+                    </a>
+                    <a href="https://github.com/ixartz/Next-JS-Landing-Page-Starter-Template" target="_blank" rel="noopener noreferrer"
+                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                      Landing Page <span className="text-xs text-gray-500">- Next.js starter</span>
+                    </a>
+                    <a href="https://github.com/ixartz/React-Native-Boilerplate" target="_blank" rel="noopener noreferrer"
+                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                      React Native <span className="text-xs text-gray-500">- Mobile starter</span>
+                    </a>
+                  </nav>
+                </div>
+              </div>
+            </div>
+
+            {/* Learning Resources */}
+            <div className="bg-white shadow rounded-lg p-4">
+              <div className="space-y-4">
+                {/* Learning Resources */}
+                <div>
+                  <h2 className="text-sm font-medium text-gray-900 mb-2 relative inline-block">
+                    Learning Resources
+                    <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
+                  </h2>
+                  <nav className="space-y-1">
+                    <a href="https://marclou.beehiiv.com/p/how-to-get-your-1st-customer-for-a-micro-saas" target="_blank" rel="noopener noreferrer"
+                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                      First Customer <span className="text-xs text-gray-500">- MicroSaaS guide</span>
+                    </a>
+                    <a href="https://www.youtube.com/watch?v=QRZ_l7cVzzU" target="_blank" rel="noopener noreferrer"
+                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                      Building MVP <span className="text-xs text-gray-500">- Video guide</span>
+                    </a>
+                    <a href="https://www.youtube.com/watch?v=Th8JoIan4dg" target="_blank" rel="noopener noreferrer"
+                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                      Idea Evaluation <span className="text-xs text-gray-500">- Video guide</span>
+                    </a>
+                  </nav>
+                </div>
+              </div>
+            </div>
+
+            {/* New Project Button */}
+            <button
+              onClick={handleNewProject}
+              className="w-full px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
+                       hover:bg-emerald-600 transform hover:scale-105 active:scale-95
+                       transition duration-200 ease-in-out shadow-sm flex items-center justify-center"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              New Project
+            </button>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="flex-1">
+            <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-gray-900 relative inline-block">
-                Project Dashboard
+                Welcome{user?.email ? `, ${user.email.split('@')[0]}` : ''}!
                 <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
                               transform -rotate-1 translate-y-1"></div>
               </h2>
-              <p className="text-gray-500 mt-2">Manage your tools and documents</p>
+              <p className="mt-3 text-xl text-gray-500">
+                Manage and access all your business assets in one place
+              </p>
             </div>
-            {generationStatus === AssetGenerationStatus.COMPLETED && (
-              <a 
-                href="/survey/1"
-                className="inline-flex items-center space-x-2 px-6 py-3 bg-emerald-500 text-white rounded-lg text-sm font-medium
+
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+              {assets.map((asset) => (
+                <div
+                  key={asset.id}
+                  className={`overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200 
+                    ${asset.type === 'external' ? 'bg-emerald-50/70' : 'bg-white'}`}
+                >
+                  <div className={`px-4 py-5 sm:p-6 ${asset.type === 'external' ? 'flex flex-col h-full' : ''}`}>
+                    <div>
+                      <h3 className={`font-medium ${asset.type === 'external' ? 'text-base' : 'text-lg'} text-gray-900`}>
+                        {asset.title}
+                      </h3>
+                      <p className={`mt-1 text-sm ${asset.type === 'external' ? 'text-gray-600' : 'text-gray-500'}`}>
+                        {asset.description}
+                      </p>
+                    </div>
+                    <div className={`mt-4 ${asset.type === 'external' ? 'mt-auto' : 'flex justify-between items-center'}`}>
+                      {asset.type === 'external' ? (
+                        <a
+                          href={asset.path}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
+                                   hover:bg-emerald-600 transform hover:scale-105 active:scale-95
+                                   transition duration-200 ease-in-out w-full justify-center"
+                        >
+                          Start Learning Today →
+                        </a>
+                      ) : loadingStates[asset.id] ? (
+                        <div className="flex items-center justify-center w-full">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-500"></div>
+                          <span className="ml-2 text-sm text-gray-500">Generating...</span>
+                        </div>
+                      ) : !generatedAssets[asset.id] ? (
+                        <button
+                          onClick={() => handleGenerate(asset.id)}
+                          className="w-full px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
+                                   hover:bg-emerald-600 transform hover:scale-105 active:scale-95
+                                   transition duration-200 ease-in-out"
+                        >
+                          Generate
+                        </button>
+                      ) : (
+                        <>
+                          <Link
+                            href={asset.path}
+                            className="inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-500"
+                          >
+                            View <ArrowTopRightOnSquareIcon className="ml-1 h-4 w-4" />
+                          </Link>
+                          <button
+                            onClick={() => handleDownload(asset.id)}
+                            className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-700"
+                          >
+                            Download <ArrowDownTrayIcon className="ml-1 h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {asset.type !== 'external' && generatedAssets[asset.id] && (
+                    <div className="bg-gray-50 px-4 py-4 sm:px-6">
+                      <div className="text-sm text-gray-500">
+                        Last updated: {new Date(asset.lastUpdated).toLocaleDateString()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* New Project Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Start New Project?</h3>
+              <p className="text-sm text-gray-500">
+                Starting a new project will reset your current workspace. Please make sure to download any assets you want to keep before proceeding.
+              </p>
+            </div>
+            <div className="mt-6 flex flex-col gap-3">
+              <button
+                onClick={handleConfirmNewProject}
+                className="w-full px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
                          hover:bg-emerald-600 transform hover:scale-105 active:scale-95
                          transition duration-200 ease-in-out shadow-sm"
               >
-                <span>Generate New Toolkit</span>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
-              </a>
-            )}
-          </header>
-
-          {/* Quick Actions */}
-          {generationStatus === AssetGenerationStatus.NOT_STARTED && (
-            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200 mb-8">
-              <div className="mb-6">
-                <h3 className="text-xl font-semibold text-gray-900 relative inline-block">
-                  Generate Launch Toolkit
-                  <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
-                </h3>
-                <p className="mt-2 text-gray-500">Create your complete business launch toolkit with one click</p>
-              </div>
-              <div className="flex flex-col space-y-4">
-                <button 
-                  onClick={handleGenerateAssets}
-                  className="inline-flex items-center px-6 py-3 bg-emerald-500 text-white rounded-lg 
-                           hover:bg-emerald-600 transition-colors duration-200"
-                >
-                  <span className="font-medium">Go</span>
-                  <span className="ml-2">→</span>
-                </button>
-              </div>
+                Continue to New Project
+              </button>
+              <button
+                onClick={() => setShowModal(false)}
+                className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium
+                         hover:bg-gray-50 transform hover:scale-105 active:scale-95
+                         transition duration-200 ease-in-out"
+              >
+                Cancel
+              </button>
             </div>
-          )}
-
-          {/* Progress Status */}
-          {currentStep !== GenerationStep.NOT_STARTED && 
-           currentStep !== GenerationStep.COMPLETED && 
-           currentStep !== GenerationStep.FAILED && (
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-8">
-              <div className="mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">
-                  Generating Assets
-                </h3>
-                <p className="mt-2 text-gray-500">{stepMessages[currentStep]}</p>
-              </div>
-              <div className="relative">
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-emerald-500 transition-all duration-500 ease-out rounded-full"
-                    style={{ width: `${getProgressPercentage()}%` }}
-                  />
-                </div>
-                <div className="mt-2 text-sm text-gray-500 text-right">
-                  {getProgressPercentage()}% complete
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Error Display */}
-          {error && (
-            <div className="bg-red-50 rounded-xl p-6 border border-red-200 mb-8">
-              <h3 className="text-xl text-red-600 mb-2">Generation Failed</h3>
-              <p className="text-red-500">{error}</p>
-            </div>
-          )}
-
-          {/* Generated Assets */}
-          {generationStatus === AssetGenerationStatus.COMPLETED && (
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <h3 className="text-xl font-semibold text-gray-900 relative inline-block mb-6">
-                Your Generated Assets
-                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
-              </h3>
-              <div className="grid gap-4">
-                {businessPlan && (
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <h4 className="font-medium text-gray-900">Business Plan</h4>
-                      <p className="text-sm text-gray-500">Complete breakdown of your business strategy</p>
-                    </div>
-                    <button
-                      onClick={() => handleDownload(businessPlan, 'business-plan.pdf')}
-                      className="inline-flex items-center px-4 py-2 bg-white border border-gray-200
-                               text-gray-600 rounded-lg text-sm font-medium
-                               hover:bg-gray-50 transform hover:scale-105 active:scale-95
-                               transition duration-200 ease-in-out shadow-sm gap-2"
-                    >
-                      <span>Download PDF</span>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
-
-                {roadmap && (
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <h4 className="font-medium text-gray-900">Project Roadmap</h4>
-                      <p className="text-sm text-gray-500">Visual timeline of your project milestones</p>
-                    </div>
-                    <button
-                      onClick={() => handleDownload(roadmap, 'roadmap.pdf')}
-                      className="inline-flex items-center px-4 py-2 bg-white border border-gray-200
-                               text-gray-600 rounded-lg text-sm font-medium
-                               hover:bg-gray-50 transform hover:scale-105 active:scale-95
-                               transition duration-200 ease-in-out shadow-sm gap-2"
-                    >
-                      <span>Download PDF</span>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
-
-                {ganttChart && (
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <h4 className="font-medium text-gray-900">Gantt Chart</h4>
-                      <p className="text-sm text-gray-500">Detailed project timeline and dependencies</p>
-                    </div>
-                    <button
-                      onClick={() => handleDownload(ganttChart, 'gantt-chart.xlsx')}
-                      className="inline-flex items-center px-4 py-2 bg-white border border-gray-200
-                               text-gray-600 rounded-lg text-sm font-medium
-                               hover:bg-gray-50 transform hover:scale-105 active:scale-95
-                               transition duration-200 ease-in-out shadow-sm gap-2"
-                    >
-                      <span>Download Excel</span>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
-
-                {pitchDeck && (
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <h4 className="font-medium text-gray-900">Pitch Deck</h4>
-                      <p className="text-sm text-gray-500">Professional presentation for investors</p>
-                    </div>
-                    <button
-                      onClick={() => handleDownload(pitchDeck, 'pitch-deck.pdf')}
-                      className="inline-flex items-center px-4 py-2 bg-white border border-gray-200
-                               text-gray-600 rounded-lg text-sm font-medium
-                               hover:bg-gray-50 transform hover:scale-105 active:scale-95
-                               transition duration-200 ease-in-out shadow-sm gap-2"
-                    >
-                      <span>Download PDF</span>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          </div>
         </div>
-      </main>
+      )}
     </div>
   )
 }

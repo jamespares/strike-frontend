@@ -24,17 +24,11 @@ const SquigglyUnderline = () => (
 
 export default function Home() {
   const router = useRouter()
-  const { session, mounted } = useUser()
+  const { session } = useUser()
 
-  useEffect(() => {
-    if (mounted && !session) {
-      router.push('/login')
-    }
-  }, [mounted, session, router])
-
-  const handleBeginQuest = () => {
+  const handleAction = () => {
     if (session) {
-      router.push('/survey/1')
+      router.push('/dashboard')
     } else {
       router.push('/login')
     }
@@ -66,12 +60,12 @@ export default function Home() {
                 <a href="#demo" className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">Demo</a>
                 <a href="#pricing" className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">Pricing</a>
                 <button
-                  onClick={handleBeginQuest}
+                  onClick={handleAction}
                   className="ml-8 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
                            hover:bg-emerald-600 transform hover:scale-105 active:scale-95
                            transition duration-200 ease-in-out shadow-sm"
                 >
-                  Get Started
+                  {session ? 'Go to Dashboard' : 'Get Started'}
                 </button>
               </div>
             </div>
@@ -102,12 +96,12 @@ export default function Home() {
               </p>
               <div className="mt-8 sm:max-w-lg sm:mx-auto sm:text-center lg:text-left">
                 <button
-                  onClick={handleBeginQuest}
+                  onClick={handleAction}
                   className="px-8 py-4 bg-emerald-500 text-white rounded-lg text-base font-medium
                            hover:bg-emerald-600 transform hover:scale-105 active:scale-95
                            transition duration-200 ease-in-out shadow-sm"
                 >
-                  Activate Founder Mode
+                  {session ? 'View Your Dashboard' : 'Activate Founder Mode'}
                 </button>
               </div>
             </div>
@@ -209,7 +203,7 @@ export default function Home() {
               <SquigglyUnderline />
             </h2>
             <p className="mt-4 text-xl text-gray-500">
-              Watch how Strike helps entrepreneurs turn their ideas into successful businesses
+              Watch how launchbooster helps entrepreneurs turn their ideas into successful businesses
             </p>
           </div>
 
@@ -237,7 +231,7 @@ export default function Home() {
           {/* Call to Action */}
           <div className="mt-16 text-center">
             <button
-              onClick={handleBeginQuest}
+              onClick={handleAction}
               className="inline-flex items-center px-6 py-3 bg-emerald-500 text-white 
                        rounded-lg text-sm font-medium hover:bg-emerald-600 
                        transform hover:scale-105 active:scale-95
@@ -307,7 +301,7 @@ export default function Home() {
               </div>
               <div className="px-8 pb-8">
                 <button
-                  onClick={handleBeginQuest}
+                  onClick={handleAction}
                   className="w-full px-4 py-3 bg-emerald-500 text-white rounded-lg text-sm font-medium
                            hover:bg-emerald-600 transform hover:scale-105 active:scale-95
                            transition duration-200 ease-in-out shadow-sm"

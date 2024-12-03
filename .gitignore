@@ -43,3 +43,6 @@ next-env.d.ts
 .env.sentry-build-plugin
 
 tmp/
+
+# google drive
+/app/api/pitch-deck/config/g-drive-key.json

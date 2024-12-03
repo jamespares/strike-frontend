@@ -21,23 +21,8 @@ export interface SurveyQuestion {
 export const surveyQuestions: SurveyQuestion[] = [
   {
     id: 1,
-    fieldName: 'problem',
-    question: "What problem are you trying to solve?",
-    placeholder: "Freelancers waste 5+ hours per month on manual time tracking and expense management. Current solutions are complex and disconnected, requiring them to juggle multiple tools.",
-    guidance: {
-      title: "Think about the pain point:",
-      items: [
-        { icon: "😫", text: "PAIN: What frustrates people the most?" },
-        { icon: "💸", text: "COST: How much time/money is wasted?" },
-        { icon: "🎯", text: "SPECIFIC: Which exact user group has this problem?" },
-        { icon: "🤔", text: "WHY NOW: Why hasn't this been solved before?" }
-      ]
-    }
-  },
-  {
-    id: 2,
     fieldName: 'solution',
-    question: "What do you want to build to solve this?",
+    question: "What do you want to build?",
     placeholder: "I'm building a SaaS tool that helps freelancers automate their time tracking and expense management. It uses Next.js for the frontend and Stripe for payments. The goal is to help freelancers save 5+ hours per month on admin work.",
     guidance: {
       title: "The more specific you are, the better:",
@@ -46,6 +31,21 @@ export const surveyQuestions: SurveyQuestion[] = [
         { icon: "⚒️", text: "HOW: How will you build it?" },
         { icon: "✨", text: "UNIQUE: What makes your solution different?" },
         { icon: "👥", text: "WHO: Who is it for?" }
+      ]
+    }
+  },
+  {
+    id: 2,
+    fieldName: 'problem',
+    question: "What problem does this solve for your users?",
+    placeholder: "Freelancers waste 5+ hours per month on manual time tracking and expense management. Current solutions are complex and disconnected, requiring them to juggle multiple tools.",
+    guidance: {
+      title: "Think about the pain point:",
+      items: [
+        { icon: "😫", text: "PAIN: What frustrates people the most?" },
+        { icon: "💸", text: "COST: How much time/money is wasted?" },
+        { icon: "🎯", text: "SPECIFIC: Which exact user group has this problem?" },
+        { icon: "🤔", text: "WHY NOW: Why hasn't this been solved before?" }
       ]
     }
   },
