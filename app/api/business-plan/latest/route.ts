@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     // Get the latest business plan
     const { data: asset, error: assetError } = await supabase
       .from('user_assets')
-      .select('*')
+      .select('content')
       .eq('user_id', session.user.id)
       .eq('asset_type', 'business_plan')
       .eq('status', 'completed')
@@ -24,11 +24,12 @@ export async function GET(request: Request) {
       .limit(1)
       .single()
 
-    if (assetError) {
+    if (assetError || !asset) {
       return NextResponse.json({ error: 'Business plan not found' }, { status: 404 })
     }
 
-    return NextResponse.json(asset)
+    // Return just the business plan data, not the PDF
+    return NextResponse.json(asset.content.businessPlan)
   } catch (error: any) {
     console.error('Error fetching business plan:', error)
     return NextResponse.json(

@@ -3,16 +3,18 @@
 import { useEffect, useState } from 'react'
 import DocumentViewer from '@/components/viewers/DocumentViewer'
 
-interface BusinessPlan {
-  sections: {
-    title: string
-    content: string | string[]
-    metrics?: {
-      label: string
-      value: string | number
-      unit?: string
-    }[]
+interface BusinessPlanSection {
+  title: string
+  content: string | string[]
+  metrics?: {
+    label: string
+    value: string | number
+    unit?: string
   }[]
+}
+
+interface BusinessPlan {
+  sections: BusinessPlanSection[]
 }
 
 export default function BusinessPlanPage() {
@@ -60,10 +62,25 @@ export default function BusinessPlanPage() {
     )
   }
 
+  // Transform business plan data to match DocumentViewer format
+  const content = {
+    sections: businessPlan.sections.map(section => ({
+      title: section.title,
+      content: Array.isArray(section.content) ? section.content : [section.content],
+      ...(section.metrics && {
+        metrics: section.metrics.map(metric => ({
+          label: metric.label,
+          value: metric.value,
+          unit: metric.unit
+        }))
+      })
+    }))
+  }
+
   return (
     <DocumentViewer
       title="Business Plan"
-      content={businessPlan}
+      content={content}
       onDownload={handleDownload}
       downloadFormat="PDF"
     />

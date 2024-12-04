@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 
 export async function GET(request: Request) {
   try {
@@ -25,7 +24,7 @@ export async function GET(request: Request) {
       .limit(1)
       .single()
 
-    if (assetError || !asset) {
+    if (assetError || !asset || !asset.content.pdfBase64) {
       return NextResponse.json({ error: 'Business plan not found' }, { status: 404 })
     }
 
