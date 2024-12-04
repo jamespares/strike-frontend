@@ -77,20 +77,65 @@ export async function POST(request: Request) {
     Budget: $${responses.budget}
     Revenue Model: ${responses.pricing_model}
     
+    First, critically evaluate the proposed pricing model:
+    1. Compare it with market averages and competitor pricing in the industry
+    2. Assess whether it aligns with the target market's willingness to pay
+    3. Evaluate if it can sustain the business and generate sufficient margins
+    4. Consider if it matches the value proposition and service quality
+    
+    If the proposed pricing model is unrealistic or suboptimal:
+    1. Suggest a more realistic pricing strategy based on market research
+    2. Explain why the alternative is more suitable
+    3. Provide specific examples from similar successful businesses
+    4. Show the impact on revenue projections and business viability
+    
     Format the response as a JSON object with sections array containing:
     - Executive Summary
     - Problem Statement
     - Solution Overview
     - Market Analysis
-    - Business Model
-    - Financial Projections
+    - Business Model (include a subsection specifically analyzing the pricing strategy with:
+      * Evaluation of proposed pricing model
+      * Comparison with market standards
+      * Alternative pricing recommendations if needed
+      * Justification for final pricing strategy)
+    - Financial Projections (include detailed metrics for:
+      * Year 1-3 Revenue Projections (based on the recommended pricing strategy)
+      * Customer Growth Estimates
+      * Cost Structure Breakdown
+      * Key Financial Metrics (CAC, LTV, Break-even Point)
+      * Monthly Burn Rate
+      * Funding Requirements
+      Make sure to include realistic numbers and growth trajectories based on market research and industry standards)
     - Risk Analysis
     - Implementation Timeline
     
     Each section should have:
     - title: string
     - content: string[] (bullet points)
-    - metrics: (optional) array of { label, value, unit }`
+    - metrics: (optional) array of { label, value, unit }
+    
+    For the Business Model section, ensure the metrics array includes:
+    - Market Average Price
+    - Competitor Price Range
+    - Recommended Price Point
+    - Expected Profit Margin
+    
+    For the Financial Projections section, ensure the metrics array includes:
+    - Year 1 Revenue Target
+    - Year 2 Revenue Target
+    - Year 3 Revenue Target
+    - Initial Customer Base
+    - Customer Growth Rate
+    - Average Revenue Per User
+    - Customer Acquisition Cost
+    - Customer Lifetime Value
+    - Monthly Operating Costs
+    - Break-even Timeline
+    
+    Make all financial projections realistic and well-justified based on the market size, competition, and industry standards.
+    Include clear explanations in the content array for how these numbers were derived.
+    If suggesting an alternative pricing model, clearly explain the rationale and expected impact on the business metrics.`
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4-1106-preview',

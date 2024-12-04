@@ -124,18 +124,33 @@ export async function POST(request: Request) {
       color: rgb(0, 0, 0)
     })
 
-    // Overall Score
+    // Disclaimer
+    const disclaimer = "Although we will evaluate this idea, it is ultimately you that decides whether it is a good idea. If you disagree with anything stated in this report and have conviction in your idea then go ahead - don't let us stop you. Treat this as just a source of friendly challenge to help you to sharpen your vision and deliver results. Please see the following assets for recommendations on how to deliver your goals successfully."
+    const disclaimerLines = wrapText(disclaimer, 495)
+    let disclaimerY = height - 150
+    disclaimerLines.forEach(line => {
+      page.drawText(line, {
+        x: 50,
+        y: disclaimerY,
+        size: 12,
+        font: timesRomanFont,
+        color: rgb(0, 0, 0)
+      })
+      disclaimerY -= 20
+    })
+
+    // Overall Score (adjusted Y position to account for disclaimer)
     page.drawText(`Overall Score: ${evaluation.overallScore}/100`, {
       x: 50,
-      y: height - 200,
+      y: disclaimerY - 30,
       size: 24,
       font: timesRomanBoldFont,
       color: rgb(0, 0, 0)
     })
 
-    // Recommendation
+    // Recommendation (adjusted Y position)
     const recommendationLines = wrapText(evaluation.recommendation, 495)
-    let yPosition = height - 250
+    let yPosition = disclaimerY - 80
     recommendationLines.forEach(line => {
       page.drawText(line, {
         x: 50,
@@ -195,16 +210,27 @@ export async function POST(request: Request) {
       })
 
       // Score
+      yPosition -= 40
       page.drawText(`Score: ${category.data.score}/100`, {
         x: 50,
-        y: yPosition - 40,
+        y: yPosition,
         size: 18,
         font: timesRomanBoldFont,
         color: rgb(0, 0, 0)
       })
 
-      // Analysis
-      yPosition -= 80
+      // Analysis heading
+      yPosition -= 40
+      page.drawText('Analysis:', {
+        x: 50,
+        y: yPosition,
+        size: 14,
+        font: timesRomanBoldFont,
+        color: rgb(0, 0, 0)
+      })
+
+      // Analysis content
+      yPosition -= 25
       const analysisLines = wrapText(category.data.analysis, 495)
       analysisLines.forEach(line => {
         page.drawText(line, {
@@ -217,8 +243,8 @@ export async function POST(request: Request) {
         yPosition -= 20
       })
 
-      // Positives
-      yPosition -= 20
+      // Positives heading
+      yPosition -= 30
       page.drawText(category.positiveLabel + ':', {
         x: 50,
         y: yPosition,
@@ -226,28 +252,34 @@ export async function POST(request: Request) {
         font: timesRomanBoldFont,
         color: rgb(0, 0, 0)
       })
-      yPosition -= 30
 
+      // Positives content
+      yPosition -= 25
       category.data.positives.forEach((item: string) => {
-        page.drawText('•', {
-          x: 50,
-          y: yPosition,
-          size: 12,
-          font: timesRomanFont,
-          color: rgb(0, 0, 0)
+        const itemLines = wrapText(item, 475)  // Slightly narrower to account for bullet indent
+        itemLines.forEach((line, index) => {
+          if (index === 0) {
+            page.drawText('•', {
+              x: 50,
+              y: yPosition,
+              size: 12,
+              font: timesRomanFont,
+              color: rgb(0, 0, 0)
+            })
+          }
+          page.drawText(line, {
+            x: 70,  // Consistent indent for wrapped lines
+            y: yPosition,
+            size: 12,
+            font: timesRomanFont,
+            color: rgb(0, 0, 0)
+          })
+          yPosition -= 20
         })
-        page.drawText(item, {
-          x: 70,
-          y: yPosition,
-          size: 12,
-          font: timesRomanFont,
-          color: rgb(0, 0, 0)
-        })
-        yPosition -= 20
       })
 
-      // Negatives
-      yPosition -= 20
+      // Negatives heading
+      yPosition -= 30
       page.drawText(category.negativeLabel + ':', {
         x: 50,
         y: yPosition,
@@ -255,24 +287,30 @@ export async function POST(request: Request) {
         font: timesRomanBoldFont,
         color: rgb(0, 0, 0)
       })
-      yPosition -= 30
 
+      // Negatives content
+      yPosition -= 25
       category.data.negatives.forEach((item: string) => {
-        page.drawText('•', {
-          x: 50,
-          y: yPosition,
-          size: 12,
-          font: timesRomanFont,
-          color: rgb(0, 0, 0)
+        const itemLines = wrapText(item, 475)  // Slightly narrower to account for bullet indent
+        itemLines.forEach((line, index) => {
+          if (index === 0) {
+            page.drawText('•', {
+              x: 50,
+              y: yPosition,
+              size: 12,
+              font: timesRomanFont,
+              color: rgb(0, 0, 0)
+            })
+          }
+          page.drawText(line, {
+            x: 70,  // Consistent indent for wrapped lines
+            y: yPosition,
+            size: 12,
+            font: timesRomanFont,
+            color: rgb(0, 0, 0)
+          })
+          yPosition -= 20
         })
-        page.drawText(item, {
-          x: 70,
-          y: yPosition,
-          size: 12,
-          font: timesRomanFont,
-          color: rgb(0, 0, 0)
-        })
-        yPosition -= 20
       })
     })
 

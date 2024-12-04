@@ -34,6 +34,7 @@ export default function DashboardPage() {
   const [isInitializing, setIsInitializing] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({})
+  const [isGeneratingAll, setIsGeneratingAll] = useState(false)
   const [generatedAssets, setGeneratedAssets] = useState<Record<string, boolean>>({})
   const [surveyResponses, setSurveyResponses] = useState<SurveyResponse | null>(null)
   const [surveyQuestions, setSurveyQuestions] = useState<SurveyQuestion[] | null>(null)
@@ -42,7 +43,7 @@ export default function DashboardPage() {
     {
       id: 'idea-evaluation',
       title: 'Idea Evaluation',
-      description: 'Comprehensive analysis of your business idea',
+      description: 'Analysis of your business idea ',
       type: 'document',
       path: '/idea-evaluation',
       lastUpdated: new Date().toISOString()
@@ -50,15 +51,15 @@ export default function DashboardPage() {
     {
       id: 'business-plan',
       title: 'Business Plan',
-      description: 'Detailed business plan and strategy',
+      description: 'Detailed business strategy',
       type: 'document',
       path: '/business-plan',
       lastUpdated: new Date().toISOString()
     },
     {
       id: 'task-manager',
-      title: 'Task Manager',
-      description: 'Project tasks and timeline tracking',
+      title: 'Task List',
+      description: 'Tasks and timeline for launching your business',
       type: 'spreadsheet',
       path: '/task-manager',
       lastUpdated: new Date().toISOString()
@@ -66,7 +67,7 @@ export default function DashboardPage() {
     {
       id: 'budget-tracker',
       title: 'Budget Tracker',
-      description: 'Financial planning and cost management',
+      description: 'Keep track of all your costs',
       type: 'spreadsheet',
       path: '/budget-tracker',
       lastUpdated: new Date().toISOString()
@@ -74,7 +75,7 @@ export default function DashboardPage() {
     {
       id: 'pitch-deck',
       title: 'Pitch Deck',
-      description: 'Investor presentation and key metrics',
+      description: 'Presentation to show off your idea',
       type: 'presentation',
       path: '/pitch-deck',
       lastUpdated: new Date().toISOString()
@@ -257,6 +258,68 @@ export default function DashboardPage() {
     router.push('/survey/1')
   }
 
+  const handleGenerateAll = async () => {
+    if (!surveyResponses || !surveyQuestions) {
+      console.error('Survey data not available')
+      alert('Please complete the survey first')
+      router.push('/survey/1')
+      return
+    }
+
+    // Check if any asset is currently being generated
+    if (Object.values(loadingStates).some(state => state) || isGeneratingAll) {
+      alert('Please wait for current generations to complete before starting new ones.')
+      return
+    }
+
+    setIsGeneratingAll(true)
+    // Set loading state for all assets
+    const allAssets = ['idea-evaluation', 'business-plan', 'task-manager', 'budget-tracker', 'pitch-deck']
+    const newLoadingStates = { ...loadingStates }
+    allAssets.forEach(id => newLoadingStates[id] = true)
+    setLoadingStates(newLoadingStates)
+
+    try {
+      await Promise.all(allAssets.map(async (assetId) => {
+        try {
+          console.log(`Making request to /api/${assetId}/generate`)
+          const response = await fetch(`/api/${assetId}/generate`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              responses: surveyResponses,
+              questions: surveyQuestions
+            })
+          })
+          
+          if (!response.ok) {
+            const errorData = await response.json()
+            console.error(`Generation failed for ${assetId}:`, errorData)
+            throw new Error(errorData.error || 'Generation failed')
+          }
+          
+          const result = await response.json()
+          console.log(`Generation successful for ${assetId}:`, result)
+          
+          await checkAssetStatus(assetId)
+        } catch (error) {
+          console.error(`Error generating ${assetId}:`, error)
+          alert(`Failed to generate ${assetId}. Please try again.`)
+        }
+      }))
+    } catch (error) {
+      console.error('Error in parallel generation:', error)
+    } finally {
+      setIsGeneratingAll(false)
+      // Reset all loading states
+      const resetLoadingStates = { ...loadingStates }
+      allAssets.forEach(id => resetLoadingStates[id] = false)
+      setLoadingStates(resetLoadingStates)
+    }
+  }
+
   const handleGenerate = async (assetId: string) => {
     console.log('Starting generation for:', assetId)
     console.log('Survey responses:', surveyResponses)
@@ -264,14 +327,13 @@ export default function DashboardPage() {
 
     if (!surveyResponses || !surveyQuestions) {
       console.error('Survey data not available')
-      // Show error message to user
       alert('Please complete the survey first')
       router.push('/survey/1')
       return
     }
 
     // Check if any other asset is currently being generated
-    if (Object.values(loadingStates).some(state => state)) {
+    if (loadingStates[assetId] || isGeneratingAll) {
       alert('Please wait for the current generation to complete before starting another one.')
       return
     }
@@ -346,98 +408,7 @@ export default function DashboardPage() {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Sidebar */}
           <div className="w-full lg:w-80 flex-shrink-0 space-y-4">
-            {/* AI Tools Section */}
-            <div className="bg-white shadow rounded-lg p-4">
-              <div className="space-y-6">
-                {/* AI Tools */}
-                <div>
-                  <h2 className="text-sm font-medium text-gray-900 mb-3 relative inline-block">
-                    AI Development Tools
-                    <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
-                  </h2>
-                  <nav className="space-y-1">
-                    <a href="https://cursor.sh" target="_blank" rel="noopener noreferrer"
-                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
-                      Cursor AI <span className="text-xs text-gray-500">- AI code editor</span>
-                    </a>
-                    <a href="https://v0.dev" target="_blank" rel="noopener noreferrer"
-                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
-                      V0.dev <span className="text-xs text-gray-500">- AI UI generation</span>
-                    </a>
-                  </nav>
-                </div>
-
-                {/* Product Tools */}
-                <div>
-                  <h2 className="text-sm font-medium text-gray-900 mb-3 relative inline-block">
-                    Product Tools
-                    <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
-                  </h2>
-                  <nav className="space-y-1">
-                    <a href="https://lovable.dev" target="_blank" rel="noopener noreferrer"
-                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
-                      lovable.dev <span className="text-xs text-gray-500">- Product builder</span>
-                    </a>
-                    <a href="https://www.producthunt.com" target="_blank" rel="noopener noreferrer"
-                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
-                      Product Hunt <span className="text-xs text-gray-500">- Launch platform</span>
-                    </a>
-                  </nav>
-                </div>
-
-                {/* Boilerplates */}
-                <div>
-                  <h2 className="text-sm font-medium text-gray-900 mb-3 relative inline-block">
-                    Code Templates
-                    <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
-                  </h2>
-                  <nav className="space-y-1">
-                    <a href="https://github.com/ixartz/SaaS-Boilerplate" target="_blank" rel="noopener noreferrer"
-                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
-                      SaaS Boilerplate <span className="text-xs text-gray-500">- Quick setup</span>
-                    </a>
-                    <a href="https://github.com/ixartz/Next-JS-Landing-Page-Starter-Template" target="_blank" rel="noopener noreferrer"
-                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
-                      Landing Page <span className="text-xs text-gray-500">- Next.js starter</span>
-                    </a>
-                    <a href="https://github.com/ixartz/React-Native-Boilerplate" target="_blank" rel="noopener noreferrer"
-                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
-                      React Native <span className="text-xs text-gray-500">- Mobile starter</span>
-                    </a>
-                  </nav>
-                </div>
-              </div>
-            </div>
-
-            {/* Learning Resources */}
-            <div className="bg-white shadow rounded-lg p-4">
-              <div>
-                <h2 className="text-sm font-medium text-gray-900 mb-3 relative inline-block">
-                  Learning Resources
-                  <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
-                </h2>
-                <nav className="space-y-1">
-                  <a href="https://marclou.beehiiv.com/p/how-to-get-your-1st-customer-for-a-micro-saas" target="_blank" rel="noopener noreferrer"
-                     className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
-                    First Customer <span className="text-xs text-gray-500">- MicroSaaS guide</span>
-                  </a>
-                  <a href="https://www.youtube.com/watch?v=QRZ_l7cVzzU" target="_blank" rel="noopener noreferrer"
-                     className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
-                    Building MVP <span className="text-xs text-gray-500">- Video guide</span>
-                  </a>
-                  <a href="https://www.youtube.com/watch?v=Th8JoIan4dg" target="_blank" rel="noopener noreferrer"
-                     className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
-                    Idea Evaluation <span className="text-xs text-gray-500">- Video guide</span>
-                  </a>
-                  <a href="https://codefa.st/?via=james" target="_blank" rel="noopener noreferrer"
-                     className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
-                    Code Course <span className="text-xs text-gray-500">- Learn to code</span>
-                  </a>
-                </nav>
-              </div>
-            </div>
-
-            {/* New Project Button */}
+            {/* New Project Button - Moved up */}
             <button
               onClick={handleNewProject}
               className="w-full px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
@@ -447,8 +418,92 @@ export default function DashboardPage() {
               <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              New Project
+              Generate New Toolkit
             </button>
+
+            {/* AI Tools Section */}
+            <div className="bg-white shadow rounded-lg p-4">
+              <h2 className="text-sm font-medium text-gray-900 mb-3 relative inline-block">
+                AI Development Tools
+                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
+              </h2>
+              <nav className="space-y-1">
+                <a href="https://cursor.sh" target="_blank" rel="noopener noreferrer"
+                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                  Cursor AI <span className="text-xs text-gray-500">- AI code editor</span>
+                </a>
+                <a href="https://v0.dev" target="_blank" rel="noopener noreferrer"
+                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                  V0.dev <span className="text-xs text-gray-500">- AI UI generation</span>
+                </a>
+              </nav>
+            </div>
+
+            {/* Product Tools Section */}
+            <div className="bg-white shadow rounded-lg p-4">
+              <h2 className="text-sm font-medium text-gray-900 mb-3 relative inline-block">
+                Product Tools
+                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
+              </h2>
+              <nav className="space-y-1">
+                <a href="https://lovable.dev" target="_blank" rel="noopener noreferrer"
+                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                  lovable.dev <span className="text-xs text-gray-500">- Product builder</span>
+                </a>
+                <a href="https://www.producthunt.com" target="_blank" rel="noopener noreferrer"
+                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                  Product Hunt <span className="text-xs text-gray-500">- Launch platform</span>
+                </a>
+              </nav>
+            </div>
+
+            {/* Code Templates Section */}
+            <div className="bg-white shadow rounded-lg p-4">
+              <h2 className="text-sm font-medium text-gray-900 mb-3 relative inline-block">
+                Code Templates
+                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
+              </h2>
+              <nav className="space-y-1">
+                <a href="https://github.com/ixartz/SaaS-Boilerplate" target="_blank" rel="noopener noreferrer"
+                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                  SaaS Boilerplate <span className="text-xs text-gray-500">- Quick setup</span>
+                </a>
+                <a href="https://github.com/ixartz/Next-JS-Landing-Page-Starter-Template" target="_blank" rel="noopener noreferrer"
+                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                  Landing Page <span className="text-xs text-gray-500">- Next.js starter</span>
+                </a>
+                <a href="https://github.com/ixartz/React-Native-Boilerplate" target="_blank" rel="noopener noreferrer"
+                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                  React Native <span className="text-xs text-gray-500">- Mobile starter</span>
+                </a>
+              </nav>
+            </div>
+
+            {/* Learning Resources Section */}
+            <div className="bg-white shadow rounded-lg p-4">
+              <h2 className="text-sm font-medium text-gray-900 mb-3 relative inline-block">
+                Learning Resources
+                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
+              </h2>
+              <nav className="space-y-1">
+                <a href="https://marclou.beehiiv.com/p/how-to-get-your-1st-customer-for-a-micro-saas" target="_blank" rel="noopener noreferrer"
+                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                  First Customer <span className="text-xs text-gray-500">- MicroSaaS guide</span>
+                </a>
+                <a href="https://www.youtube.com/watch?v=QRZ_l7cVzzU" target="_blank" rel="noopener noreferrer"
+                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                  Building MVP <span className="text-xs text-gray-500">- Video guide</span>
+                </a>
+                <a href="https://www.youtube.com/watch?v=Th8JoIan4dg" target="_blank" rel="noopener noreferrer"
+                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                  Idea Evaluation <span className="text-xs text-gray-500">- Video guide</span>
+                </a>
+                <a href="https://codefa.st/?via=james" target="_blank" rel="noopener noreferrer"
+                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                  Code Course <span className="text-xs text-gray-500">- Learn to code</span>
+                </a>
+              </nav>
+            </div>
           </div>
 
           {/* Main Content Area */}
@@ -460,12 +515,44 @@ export default function DashboardPage() {
                               transform -rotate-1 translate-y-1"></div>
               </h2>
               <p className="mt-3 text-xl text-gray-500">
-                Manage and access all your business assets in one place
+                Manage and access all your tools in one place
               </p>
             </div>
 
             {/* Asset Generation Tiles */}
             <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 mb-8">
+              {/* Generate All Tile */}
+              <div className="overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200 bg-white">
+                <div className="px-4 py-5 sm:p-6">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">
+                      Generate All
+                    </h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Create all tools in one click
+                    </p>
+                  </div>
+                  <div className="mt-4">
+                    {isGeneratingAll ? (
+                      <div className="flex items-center justify-center w-full">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-500"></div>
+                        <span className="ml-2 text-sm text-gray-500">Generating...</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleGenerateAll}
+                        className="w-full px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
+                                 hover:bg-emerald-600 transform hover:scale-105 active:scale-95
+                                 transition duration-200 ease-in-out"
+                      >
+                        Generate All
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Existing Asset Tiles */}
               {assets.map((asset) => (
                 <div
                   key={asset.id}
@@ -526,10 +613,10 @@ export default function DashboardPage() {
 
             {/* Coding Course Card */}
             <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg p-6 shadow-sm border border-emerald-100">
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Don't know how to code? No problem! 🚀</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2"> Need to code something? Don't know how to do it? No problem! 🚀</h3>
               <p className="text-gray-600 mb-4">
                 Check out Marc Lou's popular course on coding essentials for entrepreneurs.
-                Perfect for founders who want to build their MVP!
+                Perfect for founders who want to build their prototype!
               </p>
               <a
                 href="https://codefa.st/?via=james"
