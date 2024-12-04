@@ -21,7 +21,7 @@ export interface SurveyQuestion {
 export const surveyQuestions: SurveyQuestion[] = [
   {
     id: 1,
-    fieldName: 'key_goals',
+    fieldName: 'product',
     question: "What do you want to build?",
     placeholder: "I'm building a SaaS tool that helps freelancers automate their time tracking and expense management. It uses Next.js for the frontend and Stripe for payments. The goal is to help freelancers save 5+ hours per month on admin work.",
     guidance: {
@@ -36,37 +36,52 @@ export const surveyQuestions: SurveyQuestion[] = [
   },
   {
     id: 2,
-    fieldName: 'problem',
-    question: "What problem does this solve for your users?",
-    placeholder: "Freelancers waste 5+ hours per month on manual time tracking and expense management. Current solutions are complex and disconnected, requiring them to juggle multiple tools.",
+    fieldName: 'motivation',
+    question: "Why are you building this?",
+    placeholder: "Freelancers waste 5+ hours per month on manual time tracking and expense management. Current solutions are complex and disconnected, requiring them to juggle multiple tools. I've experienced this pain firsthand and believe there's a big opportunity to solve it.",
     guidance: {
-      title: "Think about the pain point:",
+      title: "Think about the problem and opportunity:",
       items: [
-        { icon: "😫", text: "PAIN: What frustrates people the most?" },
-        { icon: "💸", text: "COST: How much time/money is wasted?" },
-        { icon: "🎯", text: "SPECIFIC: Which exact user group has this problem?" },
-        { icon: "🤔", text: "WHY NOW: Why hasn't this been solved before?" }
+        { icon: "😫", text: "PAIN: What problem are you solving?" },
+        { icon: "💸", text: "MARKET: How big is this opportunity?" },
+        { icon: "🎯", text: "USERS: Who needs this the most?" },
+        { icon: "🤔", text: "TIMING: Why is now the right time?" }
       ]
     }
   },
-  { 
-    id: 3, 
-    fieldName: 'key_risks',
-    question: "What challenges could delay or derail your project?",
-    placeholder: "The payment integration is complex and might take 3-4 weeks longer than planned. I also have limited experience with Next.js, which could slow down development. There's a risk of missing the launch date if these issues compound.",
+  {
+    id: 3,
+    fieldName: 'progress',
+    question: "What have you done so far?",
+    placeholder: "I've created wireframes in Figma and validated the idea with 10 potential customers. I've also started learning Next.js and have a basic landing page set up. Two freelancers have offered to be beta testers.",
     guidance: {
-      title: "Identify the obstacles in your path:",
+      title: "Tell us about your progress:",
       items: [
-        { icon: "🔥", text: "TECHNICAL: What parts are most complex?" },
-        { icon: "⚠️", text: "SKILLS: Where might you struggle?" },
-        { icon: "⏳", text: "TIME: What could cause delays?" },
-        { icon: "💫", text: "IMPACT: How would these affect launch?" }
+        { icon: "🎯", text: "VALIDATION: Have you validated the idea?" },
+        { icon: "💻", text: "TECHNICAL: What have you built?" },
+        { icon: "📊", text: "RESEARCH: What market research have you done?" },
+        { icon: "🤝", text: "TEAM: Do you have any team members or advisors?" }
       ]
     }
   },
   { 
     id: 4, 
-    question: 'When do you want to ship your project?', 
+    fieldName: 'challenges',
+    question: "What are the biggest obstacles to a successful launch?",
+    placeholder: "The payment integration is complex and might take longer than planned. I also have limited experience with Next.js, which could slow down development. Finding early adopters willing to switch from their current tools could be challenging.",
+    guidance: {
+      title: "Identify the key challenges:",
+      items: [
+        { icon: "🔥", text: "TECHNICAL: What parts are most complex?" },
+        { icon: "⚠️", text: "MARKET: What could prevent adoption?" },
+        { icon: "⏳", text: "TIME: What might cause delays?" },
+        { icon: "💫", text: "SKILLS: Where might you need help?" }
+      ]
+    }
+  },
+  { 
+    id: 5, 
+    question: 'When do you want to launch it?', 
     fieldName: 'deadline',
     placeholder: "01/03/2025",
     guidance: {
@@ -78,7 +93,7 @@ export const surveyQuestions: SurveyQuestion[] = [
     }
   },
   { 
-    id: 5, 
+    id: 6, 
     question: 'How much can you spend to get it launched?', 
     fieldName: 'budget',
     placeholder: "$500",
@@ -89,21 +104,6 @@ export const surveyQuestions: SurveyQuestion[] = [
         { icon: "⚔️", text: "ONE-TIME: Include setup/launch costs" },
         { icon: "📊", text: "DURATION: How many months until launch?" },
         { icon: "🛡️", text: "BUFFER: Add 20% for unexpected costs" }
-      ]
-    }
-  },
-  {
-    id: 6,
-    fieldName: 'pricing_model',
-    question: "How will you make money?",
-    placeholder: "Monthly subscription of $29/month for freelancers, with a higher tier at $49/month for small agencies. Annual plans will be offered at a 20% discount.",
-    guidance: {
-      title: "Define your pricing strategy:",
-      items: [
-        { icon: "💳", text: "MODEL: Subscription or one-time payment?" },
-        { icon: "💰", text: "PRICE: How much will you charge?" },
-        { icon: "📊", text: "TIERS: Will you have different pricing tiers?" },
-        { icon: "🎯", text: "VALUE: Does the price match the value provided?" }
       ]
     }
   }

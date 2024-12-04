@@ -67,14 +67,24 @@ export default function Home() {
                 <a href="#demo" className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">Demo</a>
                 <a href="#pricing" className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">Pricing</a>
                 {session ? (
-                  <button
-                    onClick={handleLogout}
-                    className="ml-8 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
+                  <>
+                    <button
+                      onClick={() => router.push('/dashboard')}
+                      className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
                              hover:bg-emerald-600 transform hover:scale-105 active:scale-95
                              transition duration-200 ease-in-out shadow-sm"
-                  >
-                    Log Out
-                  </button>
+                    >
+                      Toolkit Dashboard
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="ml-4 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
+                             hover:bg-emerald-600 transform hover:scale-105 active:scale-95
+                             transition duration-200 ease-in-out shadow-sm"
+                    >
+                      Log Out
+                    </button>
+                  </>
                 ) : (
                   <button
                     onClick={() => router.push('/login')}
@@ -102,7 +112,7 @@ export default function Home() {
                   <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
                                 transform -rotate-1 translate-y-1"></div>
                 </span>
-                <span className="block text-emerald-500 mt-2">Not sure where to start?</span>
+                <span className="block text-emerald-500 mt-2">Not sure how to launch?</span>
                 <span className="block text-gray-900 relative inline-block mt-2">
                   You're in the right place.
                   <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
@@ -110,7 +120,10 @@ export default function Home() {
                 </span>
               </h1>
               <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-xl lg:text-lg xl:text-xl">
-                Our guided process helps you evaluate your idea, create a concrete plan, and generate a bespoke pitch deck so you can get your idea off the ground.
+                Our AI model analyses your concept and generates all the documents you need to succeed: evaluation report, strategy plan, roadmap, task breakdown, cost tracker, and custom investor pitch deck. All populaated and fully tailored to your use case.
+              </p>
+              <p className="mt-2 text-sm text-emerald-600 font-medium">
+                Average completion time: 10 minutes
               </p>
               <div className="mt-8 sm:max-w-lg sm:mx-auto sm:text-center lg:text-left">
                 <button
@@ -119,7 +132,7 @@ export default function Home() {
                            hover:bg-emerald-600 transform hover:scale-105 active:scale-95
                            transition duration-200 ease-in-out shadow-sm"
                 >
-                  {session ? 'View Your Dashboard' : 'Activate Founder Mode'}
+                  {session ? 'Generate New Toolkit' : 'Activate Founder Mode'}
                 </button>
               </div>
             </div>
@@ -150,7 +163,7 @@ export default function Home() {
                             transform -rotate-1 translate-y-1"></div>
             </h2>
             <p className="mt-4 text-xl text-gray-500">
-              Using frameworks from leading accelerators and VCs:
+              Using proven frameworks from leading accelerators and VCs:
             </p>
             <div className="mt-6 flex justify-center items-center space-x-16">
               <div className="h-14 flex items-center transition-all duration-200">
@@ -174,33 +187,33 @@ export default function Home() {
             {[
               {
                 icon: "🎯",
-                title: "Guided Validation",
-                description: "Answer Y Combinator-inspired questions to validate and refine your business idea"
+                title: "Idea Evaluation",
+                description: "Get your business idea evaluated using Y Combinator's proven frameworks"
+              },
+              {
+                icon: "📋",
+                title: "Launch Strategy",
+                description: "Receive a comprehensive business launch strategy document"
               },
               {
                 icon: "🗺️",
-                title: "Clear Roadmap",
-                description: "Get a step-by-step plan that breaks down complex tasks into manageable actions"
+                title: "Visual Roadmap",
+                description: "Clear visual diagram showing your path from idea to launch"
               },
               {
-                icon: "📊",
-                title: "Budget Planning",
-                description: "Simple tools to plan your finances, even if you're new to business budgeting"
+                icon: "✅",
+                title: "Task Manager",
+                description: "Detailed work breakdown structure with every task needed to launch"
               },
               {
-                icon: "⚠️",
-                title: "Risk Assessment",
-                description: "Identify potential challenges before they become problems"
+                icon: "💰",
+                title: "Cost Tracker",
+                description: "Spreadsheet to track and manage all launch-related expenses"
               },
               {
                 icon: "🎭",
-                title: "Professional Pitch Deck",
-                description: "Generate a Sequoia Capital-style pitch deck that investors love"
-              },
-              {
-                icon: "🤝",
-                title: "24/7 Support",
-                description: "Get help whenever you need it - you're not alone in this journey"
+                title: "Pitch Deck",
+                description: "Professional pitch deck ready to present to investors"
               }
             ].map((feature, index) => (
               <div key={index} className="relative p-6 bg-white rounded-lg shadow-sm border border-gray-200">
@@ -221,7 +234,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl relative inline-block">
-              See Strike in Action
+              Demo
               <SquigglyUnderline />
             </h2>
             <p className="mt-4 text-xl text-gray-500">
@@ -255,7 +268,7 @@ export default function Home() {
                        transform hover:scale-105 active:scale-95
                        transition duration-200 ease-in-out shadow-sm gap-2"
             >
-              <span>Try It</span>
+              <span>Get Started</span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
@@ -285,35 +298,31 @@ export default function Home() {
                   Business Launch Toolkit
                   <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
                 </h3>
-                <p className="mt-4 text-gray-500">Everything you need to launch your business</p>
-                <p className="mt-8">
-                  <span className="text-4xl font-extrabold text-gray-900">$25</span>
-                  <span className="text-gray-500">/toolkit</span>
-                </p>
+                <p className="mt-4 text-gray-500">Instantly generate everything you need to launch your business</p>
                 <ul className="mt-8 space-y-4">
                   <li className="flex items-center">
                     <span className="text-emerald-500 mr-2">✓</span>
-                    <span className="text-gray-500">Custom business roadmap</span>
+                    <span className="text-gray-500">Business Idea Evaluation Report (PDF)</span>
                   </li>
                   <li className="flex items-center">
                     <span className="text-emerald-500 mr-2">✓</span>
-                    <span className="text-gray-500">Detailed timeline with tasks</span>
+                    <span className="text-gray-500">Launch Strategy Document (PDF)</span>
                   </li>
                   <li className="flex items-center">
                     <span className="text-emerald-500 mr-2">✓</span>
-                    <span className="text-gray-500">Budget tracking tools</span>
+                    <span className="text-gray-500">Visual Roadmap Diagram (PDF)</span>
                   </li>
                   <li className="flex items-center">
                     <span className="text-emerald-500 mr-2">✓</span>
-                    <span className="text-gray-500">Risk management strategies</span>
+                    <span className="text-gray-500">Task Management Spreadsheet</span>
                   </li>
                   <li className="flex items-center">
                     <span className="text-emerald-500 mr-2">✓</span>
-                    <span className="text-gray-500">Professional pitch deck</span>
+                    <span className="text-gray-500">Cost Tracking Spreadsheet</span>
                   </li>
                   <li className="flex items-center">
                     <span className="text-emerald-500 mr-2">✓</span>
-                    <span className="text-gray-500">24/7 Support</span>
+                    <span className="text-gray-500">Investor Pitch Deck (PDF & PowerPoint)</span>
                   </li>
                 </ul>
               </div>
@@ -335,6 +344,101 @@ export default function Home() {
                 Contact us for pricing →
               </a>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl relative inline-block">
+              How It Works
+              <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
+                            transform -rotate-1 translate-y-1"></div>
+            </h2>
+          </div>
+
+          <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-4">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl text-emerald-600">1</span>
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Answer Questions</h3>
+              <p className="text-gray-500">Complete our Y Combinator-inspired questionnaire about your business idea</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl text-emerald-600">2</span>
+              </div>
+              <h3 className="text-lg font-semibold mb-2">AI Analysis</h3>
+              <p className="text-gray-500">Our model evaluates your idea and creates your launch strategy</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl text-emerald-600">3</span>
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Generate Assets</h3>
+              <p className="text-gray-500">Get your evaluation, strategy, roadmap, and pitch deck</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl text-emerald-600">4</span>
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Start Executing</h3>
+              <p className="text-gray-500">Use the task manager and cost tracker to begin your launch</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Social Proof Section */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl relative inline-block">
+              Trusted by Founders
+              <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
+                            transform -rotate-1 translate-y-1"></div>
+            </h2>
+          </div>
+
+          <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-3">
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <div className="flex items-center mb-4">
+                <div className="h-12 w-12 rounded-full bg-gray-200"></div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold">Sarah Chen</h3>
+                  <p className="text-gray-500">Tech Startup Founder</p>
+                </div>
+              </div>
+              <p className="text-gray-600">"Generated my pitch deck in 45 minutes. Secured a meeting with investors the next week."</p>
+            </div>
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <div className="flex items-center mb-4">
+                <div className="h-12 w-12 rounded-full bg-gray-200"></div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold">Marcus Rodriguez</h3>
+                  <p className="text-gray-500">E-commerce Founder</p>
+                </div>
+              </div>
+              <p className="text-gray-600">"The financial planning tools helped me understand exactly what I needed to launch."</p>
+            </div>
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <div className="flex items-center mb-4">
+                <div className="h-12 w-12 rounded-full bg-gray-200"></div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold">Lisa Thompson</h3>
+                  <p className="text-gray-500">SaaS Founder</p>
+                </div>
+              </div>
+              <p className="text-gray-600">"The roadmap feature saved me months of planning. Clear, actionable steps."</p>
+            </div>
+          </div>
+
+          <div className="mt-12 text-center">
+            <p className="text-2xl font-bold text-gray-900">500+</p>
+            <p className="text-gray-500">Founders Launched</p>
           </div>
         </div>
       </section>

@@ -6,11 +6,13 @@ import { cookies } from 'next/headers'
 import { SurveyQuestion } from '@/data/surveyQuestions'
 
 interface SurveyResponse {
-  problem: string
-  key_risks: string
+  id: string
+  product: string
+  motivation: string
+  progress: string
+  challenges: string
   deadline: string
   budget: string | number
-  pricing_model: string
 }
 
 interface Task {
@@ -70,11 +72,12 @@ export async function POST(request: Request) {
 
     // Generate initial tasks using OpenAI
     const prompt = `Create a project task list based on:
-    Problem: ${responses.problem}
-    Key Risks: ${responses.key_risks}
+    Product: ${responses.product}
+    Motivation/Problem: ${responses.motivation}
+    Current Progress: ${responses.progress}
+    Key Challenges: ${responses.challenges}
     Timeline: ${responses.deadline}
     Budget: $${responses.budget}
-    Revenue Model: ${responses.pricing_model}
     
     Format the response as a JSON array of tasks, each with:
     - id: string (unique identifier)
@@ -90,7 +93,10 @@ export async function POST(request: Request) {
     - Development & Implementation
     - Testing & Quality Assurance
     - Marketing & Launch
-    - Post-Launch Support`
+    - Post-Launch Support
+    
+    Consider the current progress and challenges when creating the task list.
+    Prioritize tasks that address the key challenges identified.`
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4',

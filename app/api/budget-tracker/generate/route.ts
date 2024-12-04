@@ -5,11 +5,13 @@ import { cookies } from 'next/headers'
 import { SurveyQuestion } from '@/data/surveyQuestions'
 
 interface SurveyResponse {
-  problem: string
-  key_risks: string
+  id: string
+  product: string
+  motivation: string
+  progress: string
+  challenges: string
   deadline: string
   budget: string | number
-  pricing_model: string
 }
 
 export async function POST(request: Request) {
@@ -99,6 +101,35 @@ export async function POST(request: Request) {
         type: 'anyone'
       }
     })
+
+    // Generate budget breakdown using OpenAI
+    const prompt = `Create a budget breakdown based on:
+Product: ${responses.product}
+Motivation/Problem: ${responses.motivation}
+Current Progress: ${responses.progress}
+Key Challenges: ${responses.challenges}
+Timeline: ${responses.deadline}
+Total Budget: $${responses.budget}
+
+Format the response as a JSON object with:
+1. Development Costs
+   - Infrastructure & Hosting
+   - Tools & Services
+   - Third-party APIs
+2. Marketing & Sales
+   - Advertising
+   - Content Creation
+   - Customer Acquisition
+3. Operations
+   - Team & Contractors
+   - Software Subscriptions
+   - Administrative
+4. Contingency Fund
+   - Risk Mitigation
+   - Emergency Reserve
+
+Consider the current progress and allocate budget accordingly.
+Account for the identified challenges in the contingency planning.`
 
     // Update the asset record with the generated content
     const { error: updateError } = await supabase

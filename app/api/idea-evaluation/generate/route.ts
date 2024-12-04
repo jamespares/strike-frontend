@@ -8,12 +8,13 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 
 interface SurveyResponse {
-  problem: string
-  key_goals: string
-  key_risks: string
+  id: string
+  product: string
+  motivation: string
+  progress: string
+  challenges: string
   deadline: string
   budget: string | number
-  pricing_model: string
 }
 
 interface CategoryData {
@@ -459,12 +460,12 @@ async function generateIdeaEvaluation(responses: SurveyResponse, questions: Surv
       {
         role: "user",
         content: `Evaluate this startup idea:
-        Problem: ${responses.problem}
-        Solution/Goals: ${responses.key_goals}
-        Key Risks: ${responses.key_risks}
+        Product: ${responses.product}
+        Motivation/Problem: ${responses.motivation}
+        Current Progress: ${responses.progress}
+        Key Challenges: ${responses.challenges}
         Timeline: ${responses.deadline}
         Budget: $${budget}
-        Revenue Model: ${responses.pricing_model}
         
         Provide a thorough evaluation following the exact JSON structure specified.
         Ensure all scores are numbers between 0-100.

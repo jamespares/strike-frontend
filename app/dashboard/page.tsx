@@ -18,14 +18,17 @@ interface Asset {
 }
 
 interface SurveyResponse {
-  problem: string
-  key_risks: string
+  id: string
+  product: string
+  motivation: string
+  progress: string
+  challenges: string
   deadline: string
   budget: string | number
-  pricing_model: string
   user_id: string
   created_at: string
   updated_at: string
+  is_latest: boolean
 }
 
 export default function DashboardPage() {
@@ -107,9 +110,17 @@ export default function DashboardPage() {
 
   const checkAssetStatus = async (assetId: string) => {
     try {
-      const response = await fetch(`/api/${assetId}/latest`, { method: 'HEAD' })
+      if (!surveyResponses?.id) {
+        console.log('No survey response ID available')
+        return
+      }
+      console.log(`Checking status for ${assetId} with response ID ${surveyResponses.id}`)
+      const response = await fetch(`/api/${assetId}/latest?responseId=${surveyResponses.id}`, { 
+        method: 'HEAD' 
+      })
       setGeneratedAssets(prev => ({ ...prev, [assetId]: response.ok }))
     } catch (error) {
+      console.error(`Error checking asset status for ${assetId}:`, error)
       setGeneratedAssets(prev => ({ ...prev, [assetId]: false }))
     }
   }
@@ -134,11 +145,12 @@ export default function DashboardPage() {
       try {
         console.log('Fetching survey data for user:', session.user.email)
         
-        // Fetch survey responses
+        // Fetch latest survey response
         const { data: responses, error: responsesError } = await supabase
           .from('survey_responses')
           .select('*')
           .eq('user_id', session.user.id)
+          .eq('is_latest', true)
           .single()
 
         if (responsesError) {
@@ -146,8 +158,26 @@ export default function DashboardPage() {
           throw responsesError
         }
         
-        console.log('Survey responses:', responses)
+        console.log('Latest survey response:', responses)
         setSurveyResponses(responses)
+
+        // Check for assets generated from this latest response
+        if (responses) {
+          const states: Record<string, boolean> = {}
+          const allAssets = ['idea-evaluation', 'business-plan', 'task-manager', 'budget-tracker', 'pitch-deck']
+          
+          for (const assetId of allAssets) {
+            try {
+              const response = await fetch(`/api/${assetId}/latest?responseId=${responses.id}`, { 
+                method: 'HEAD' 
+              })
+              states[assetId] = response.ok
+            } catch (error) {
+              states[assetId] = false
+            }
+          }
+          setGeneratedAssets(states)
+        }
 
         // Import survey questions
         const { surveyQuestions } = await import('@/data/surveyQuestions')
@@ -160,6 +190,37 @@ export default function DashboardPage() {
 
     fetchSurveyData()
   }, [session])
+
+  useEffect(() => {
+    const checkAllAssetStatus = async () => {
+      if (!session?.user?.id || !surveyResponses?.id) {
+        console.log('No session or survey response ID available')
+        setGeneratedAssets({})
+        return
+      }
+      
+      console.log('Checking assets for survey response:', surveyResponses.id)
+      const allAssets = ['idea-evaluation', 'business-plan', 'task-manager', 'budget-tracker', 'pitch-deck']
+      const states: Record<string, boolean> = {}
+      
+      for (const assetId of allAssets) {
+        try {
+          const response = await fetch(`/api/${assetId}/latest?responseId=${surveyResponses.id}`, { 
+            method: 'HEAD' 
+          })
+          states[assetId] = response.ok
+          console.log(`Asset ${assetId} status:`, response.ok)
+        } catch (error) {
+          console.error(`Error checking ${assetId}:`, error)
+          states[assetId] = false
+        }
+      }
+      
+      setGeneratedAssets(states)
+    }
+
+    checkAllAssetStatus()
+  }, [session, surveyResponses])
 
   if (isInitializing) {
     return (
@@ -250,12 +311,26 @@ export default function DashboardPage() {
   }
 
   const handleNewProject = () => {
+    // Only clear the UI state
+    setGeneratedAssets({})
+    setLoadingStates({})
+    setSurveyResponses(null)
     setShowModal(true)
   }
 
-  const handleConfirmNewProject = () => {
-    setShowModal(false)
-    router.push('/survey/1')
+  const handleConfirmNewProject = async () => {
+    try {
+      // Reset UI states
+      setGeneratedAssets({})
+      setLoadingStates({})
+      setSurveyResponses(null)
+      
+      setShowModal(false)
+      router.push('/survey/1')
+    } catch (error) {
+      console.error('Error starting new project:', error)
+      alert('Failed to start new project. Please try again.')
+    }
   }
 
   const handleGenerateAll = async () => {
@@ -266,14 +341,12 @@ export default function DashboardPage() {
       return
     }
 
-    // Check if any asset is currently being generated
     if (Object.values(loadingStates).some(state => state) || isGeneratingAll) {
       alert('Please wait for current generations to complete before starting new ones.')
       return
     }
 
     setIsGeneratingAll(true)
-    // Set loading state for all assets
     const allAssets = ['idea-evaluation', 'business-plan', 'task-manager', 'budget-tracker', 'pitch-deck']
     const newLoadingStates = { ...loadingStates }
     allAssets.forEach(id => newLoadingStates[id] = true)
@@ -290,7 +363,8 @@ export default function DashboardPage() {
             },
             body: JSON.stringify({
               responses: surveyResponses,
-              questions: surveyQuestions
+              questions: surveyQuestions,
+              responseId: surveyResponses.id // Include the response ID
             })
           })
           
@@ -313,7 +387,6 @@ export default function DashboardPage() {
       console.error('Error in parallel generation:', error)
     } finally {
       setIsGeneratingAll(false)
-      // Reset all loading states
       const resetLoadingStates = { ...loadingStates }
       allAssets.forEach(id => resetLoadingStates[id] = false)
       setLoadingStates(resetLoadingStates)
@@ -349,7 +422,8 @@ export default function DashboardPage() {
         },
         body: JSON.stringify({
           responses: surveyResponses,
-          questions: surveyQuestions
+          questions: surveyQuestions,
+          responseId: surveyResponses.id // Include the response ID
         })
       })
       
@@ -362,7 +436,6 @@ export default function DashboardPage() {
       const result = await response.json()
       console.log('Generation successful:', result)
       
-      // Only check the status of the asset that was just generated
       await checkAssetStatus(assetId)
     } catch (error) {
       console.error(`Error generating ${assetId}:`, error)
@@ -498,9 +571,13 @@ export default function DashboardPage() {
                    className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
                   Idea Evaluation <span className="text-xs text-gray-500">- Video guide</span>
                 </a>
-                <a href="https://codefa.st/?via=james" target="_blank" rel="noopener noreferrer"
+                <a href="https://www.amazon.co.uk/How-Big-Things-Get-Done/dp/1035018934" target="_blank" rel="noopener noreferrer"
                    className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
-                  Code Course <span className="text-xs text-gray-500">- Learn to code</span>
+                  How Big Things Get Done <span className="text-xs text-gray-500">- Project management handbook</span>
+                </a>
+                <a href="https://readmake.com/" target="_blank" rel="noopener noreferrer"
+                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                  MAKE <span className="text-xs text-gray-500">- Solo founder's guide by @levelsio</span>
                 </a>
               </nav>
             </div>

@@ -8,11 +8,13 @@ import fs from 'fs/promises'
 import path from 'path'
 
 interface SurveyResponse {
-  problem: string
-  key_risks: string
+  id: string
+  product: string
+  motivation: string
+  progress: string
+  challenges: string
   deadline: string
   budget: string | number
-  pricing_model: string
 }
 
 interface BusinessPlanSection {
@@ -70,72 +72,110 @@ export async function POST(request: Request) {
     }
 
     // Generate business plan content using OpenAI
-    const prompt = `Create a detailed business plan based on:
-    Problem: ${responses.problem}
-    Key Risks: ${responses.key_risks}
+    const prompt = `Create a comprehensive business plan based on:
+    Product: ${responses.product}
+    Motivation/Problem: ${responses.motivation}
+    Current Progress: ${responses.progress}
+    Key Challenges: ${responses.challenges}
     Timeline: ${responses.deadline}
     Budget: $${responses.budget}
-    Revenue Model: ${responses.pricing_model}
     
-    First, critically evaluate the proposed pricing model:
-    1. Compare it with market averages and competitor pricing in the industry
-    2. Assess whether it aligns with the target market's willingness to pay
-    3. Evaluate if it can sustain the business and generate sufficient margins
-    4. Consider if it matches the value proposition and service quality
+    The motivation/problem statement should be the foundation for the entire plan.
+    Use it to shape:
+    - Business objectives and goals
+    - Target market selection
+    - Value proposition
+    - Strategic priorities
+    - Success metrics
     
-    If the proposed pricing model is unrealistic or suboptimal:
-    1. Suggest a more realistic pricing strategy based on market research
-    2. Explain why the alternative is more suitable
-    3. Provide specific examples from similar successful businesses
-    4. Show the impact on revenue projections and business viability
+    Format the response as a JSON object with these sections:
     
-    Format the response as a JSON object with sections array containing:
-    - Executive Summary
-    - Problem Statement
-    - Solution Overview
-    - Market Analysis
-    - Business Model (include a subsection specifically analyzing the pricing strategy with:
-      * Evaluation of proposed pricing model
-      * Comparison with market standards
-      * Alternative pricing recommendations if needed
-      * Justification for final pricing strategy)
-    - Financial Projections (include detailed metrics for:
-      * Year 1-3 Revenue Projections (based on the recommended pricing strategy)
-      * Customer Growth Estimates
-      * Cost Structure Breakdown
-      * Key Financial Metrics (CAC, LTV, Break-even Point)
-      * Monthly Burn Rate
-      * Funding Requirements
-      Make sure to include realistic numbers and growth trajectories based on market research and industry standards)
-    - Risk Analysis
-    - Implementation Timeline
+    1. Executive Summary
+       - Vision and mission derived from the motivation
+       - Clear connection between problem and solution
+       - High-level objectives and success criteria
+    
+    2. Strategic Analysis
+       - Detailed problem/motivation analysis
+       - Market size and opportunity
+       - Competitive landscape
+       - Unique value proposition
+    
+    3. Product Strategy
+       - Product description and features
+       - Development roadmap
+       - Technical requirements
+       - Innovation opportunities
+    
+    4. Market Strategy
+       - Target customer segments
+       - Go-to-market plan
+       - Marketing channels
+       - Pricing strategy based on value proposition
+    
+    5. Financial Projections
+       - Revenue streams
+       - Cost structure
+       - Break-even analysis
+       - Funding requirements
+    
+    6. Implementation Timeline
+       - Key milestones
+       - Resource allocation
+       - Dependencies
+       - Critical path
+    
+    7. Risk Analysis
+       - Market risks
+       - Technical risks
+       - Financial risks
+       - Mitigation strategies
+    
+    8. Key Performance Indicators (KPIs)
+       Include specific metrics for each area:
+       
+       Business Health:
+       - Monthly Recurring Revenue (MRR)
+       - Customer Acquisition Cost (CAC)
+       - Lifetime Value (LTV)
+       - Burn Rate
+       - Runway
+    
+       Product:
+       - User Adoption Rate
+       - Feature Usage
+       - User Retention
+       - System Uptime
+       - Performance Metrics
+    
+       Customer Success:
+       - Customer Satisfaction Score
+       - Net Promoter Score
+       - Support Response Time
+       - Customer Churn Rate
+       - Feature Request Implementation
+    
+       Marketing & Sales:
+       - Conversion Rates
+       - Lead Generation
+       - Sales Cycle Length
+       - Website Traffic
+       - Social Media Engagement
+    
+    For each KPI, include:
+    - Description
+    - Target value
+    - Measurement frequency
+    - Tools for tracking
+    - Action triggers (what to do if KPI is off target)
     
     Each section should have:
     - title: string
     - content: string[] (bullet points)
     - metrics: (optional) array of { label, value, unit }
     
-    For the Business Model section, ensure the metrics array includes:
-    - Market Average Price
-    - Competitor Price Range
-    - Recommended Price Point
-    - Expected Profit Margin
-    
-    For the Financial Projections section, ensure the metrics array includes:
-    - Year 1 Revenue Target
-    - Year 2 Revenue Target
-    - Year 3 Revenue Target
-    - Initial Customer Base
-    - Customer Growth Rate
-    - Average Revenue Per User
-    - Customer Acquisition Cost
-    - Customer Lifetime Value
-    - Monthly Operating Costs
-    - Break-even Timeline
-    
-    Make all financial projections realistic and well-justified based on the market size, competition, and industry standards.
-    Include clear explanations in the content array for how these numbers were derived.
-    If suggesting an alternative pricing model, clearly explain the rationale and expected impact on the business metrics.`
+    Make all projections and metrics realistic and achievable based on the budget and timeline.
+    Focus on metrics that directly relate to the core motivation and problem being solved.`
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4-1106-preview',

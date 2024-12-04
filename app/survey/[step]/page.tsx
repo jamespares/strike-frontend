@@ -48,35 +48,88 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
       setIsSubmitting(true)
       if (!session?.user?.id) {
         console.error('No user ID found')
+        alert('Session error: Please try logging in again')
         return
       }
 
-      // Get existing responses first
-      const { data: existingResponses } = await supabase
-        .from('survey_responses')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .single()
+      console.log('Starting survey submission...', {
+        userId: session.user.id,
+        step: currentStep,
+        fieldName: question.fieldName,
+        answer: data.answer
+      })
 
-      // Merge new response with existing ones
-      const updatedResponses = {
-        ...(existingResponses || {}),
-        user_id: session.user.id,
-        updated_at: new Date().toISOString(),
-        [question.fieldName]: data.answer
+      // If this is the first question (step 1), create a new response
+      if (currentStep === 1) {
+        console.log('Step 1: Creating new survey response...')
+        
+        try {
+          // First, set all existing responses for this user to not latest
+          console.log('Setting previous responses to not latest...')
+          const { error: updateError } = await supabase
+            .from('survey_responses')
+            .update({ is_latest: false })
+            .eq('user_id', session.user.id)
+
+          if (updateError) {
+            console.error('Error updating existing responses:', updateError)
+            throw updateError
+          }
+          console.log('Previous responses updated successfully')
+
+          // Then create a new response
+          console.log('Creating new response...')
+          const { data: newResponse, error: insertError } = await supabase
+            .from('survey_responses')
+            .insert({
+              user_id: session.user.id,
+              [question.fieldName]: data.answer,
+              is_latest: true
+            })
+            .select()
+            .single()
+
+          if (insertError) {
+            console.error('Error creating new response:', insertError)
+            throw insertError
+          }
+          console.log('New response created successfully:', newResponse)
+
+        } catch (error) {
+          console.error('Database operation failed:', error)
+          alert('Failed to save your response. Please try again.')
+          return
+        }
+      } else {
+        // For subsequent questions, update the latest response
+        console.log(`Step ${currentStep}: Updating existing response...`)
+        
+        try {
+          const { data: updatedResponse, error: updateError } = await supabase
+            .from('survey_responses')
+            .update({
+              [question.fieldName]: data.answer,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', session.user.id)
+            .eq('is_latest', true)
+            .select()
+            .single()
+
+          if (updateError) {
+            console.error('Error updating response:', updateError)
+            throw updateError
+          }
+          console.log('Response updated successfully:', updatedResponse)
+
+        } catch (error) {
+          console.error('Database operation failed:', error)
+          alert('Failed to save your response. Please try again.')
+          return
+        }
       }
 
-      // Upsert the merged responses
-      const { error } = await supabase
-        .from('survey_responses')
-        .upsert(updatedResponses, {
-          onConflict: 'user_id'
-        })
-
-      if (error) {
-        console.error('Supabase error:', error)
-        return
-      }
+      console.log('Survey response saved successfully')
 
       // If this is the last question, redirect to payment
       if (currentStep === surveyQuestions.length) {
@@ -86,6 +139,7 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
       }
     } catch (err) {
       console.error('Error in form submission:', err)
+      alert('An unexpected error occurred. Please try again.')
     } finally {
       setIsSubmitting(false)
     }

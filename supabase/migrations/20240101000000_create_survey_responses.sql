@@ -9,19 +9,25 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Create survey_responses table
 CREATE TABLE IF NOT EXISTS survey_responses (
-    user_id UUID REFERENCES auth.users(id) PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES auth.users(id),
     problem TEXT,
     solution TEXT,
     key_risks TEXT,
     deadline TEXT,
     budget NUMERIC,
     pricing_model TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
+    is_latest BOOLEAN DEFAULT true,
     CONSTRAINT fk_user
         FOREIGN KEY (user_id)
         REFERENCES auth.users(id)
         ON DELETE CASCADE
 );
+
+-- Index for faster lookups
+CREATE INDEX idx_survey_responses_user_latest ON survey_responses(user_id, is_latest);
 
 -- Create project_plans table
 CREATE TABLE IF NOT EXISTS project_plans (
