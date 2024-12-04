@@ -12,7 +12,7 @@ interface Asset {
   id: string
   title: string
   description: string
-  type: 'document' | 'spreadsheet' | 'presentation' | 'external'
+  type: 'document' | 'spreadsheet' | 'presentation'
   path: string
   lastUpdated: string
 }
@@ -38,6 +38,49 @@ export default function DashboardPage() {
   const [surveyResponses, setSurveyResponses] = useState<SurveyResponse | null>(null)
   const [surveyQuestions, setSurveyQuestions] = useState<SurveyQuestion[] | null>(null)
 
+  const assets: Asset[] = [
+    {
+      id: 'idea-evaluation',
+      title: 'Idea Evaluation',
+      description: 'Comprehensive analysis of your business idea',
+      type: 'document',
+      path: '/idea-evaluation',
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: 'business-plan',
+      title: 'Business Plan',
+      description: 'Detailed business plan and strategy',
+      type: 'document',
+      path: '/business-plan',
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: 'task-manager',
+      title: 'Task Manager',
+      description: 'Project tasks and timeline tracking',
+      type: 'spreadsheet',
+      path: '/task-manager',
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: 'budget-tracker',
+      title: 'Budget Tracker',
+      description: 'Financial planning and cost management',
+      type: 'spreadsheet',
+      path: '/budget-tracker',
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: 'pitch-deck',
+      title: 'Pitch Deck',
+      description: 'Investor presentation and key metrics',
+      type: 'presentation',
+      path: '/pitch-deck',
+      lastUpdated: new Date().toISOString()
+    }
+  ]
+
   useEffect(() => {
     // Check which assets have been generated
     const checkGeneratedAssets = async () => {
@@ -46,7 +89,7 @@ export default function DashboardPage() {
       
       for (const id of assetIds) {
         try {
-          const response = await fetch(`/api/${id}/latest`)
+          const response = await fetch(`/api/${id}/latest`, { method: 'HEAD' })
           states[id] = response.ok
         } catch (error) {
           states[id] = false
@@ -60,6 +103,15 @@ export default function DashboardPage() {
       checkGeneratedAssets()
     }
   }, [session])
+
+  const checkAssetStatus = async (assetId: string) => {
+    try {
+      const response = await fetch(`/api/${assetId}/latest`, { method: 'HEAD' })
+      setGeneratedAssets(prev => ({ ...prev, [assetId]: response.ok }))
+    } catch (error) {
+      setGeneratedAssets(prev => ({ ...prev, [assetId]: false }))
+    }
+  }
 
   useEffect(() => {
     // Add a small delay to allow Supabase to initialize
@@ -120,55 +172,50 @@ export default function DashboardPage() {
     return null
   }
 
-  const assets: Asset[] = [
+  const aiTools: Asset[] = [
     {
       id: 'idea-evaluation',
-      title: 'Idea Evaluation',
-      description: 'Comprehensive analysis of your business idea',
+      title: 'AI Idea Evaluation',
+      description: 'Get a comprehensive analysis of your business idea using our AI assistant',
       type: 'document',
       path: '/idea-evaluation',
       lastUpdated: new Date().toISOString()
     },
     {
       id: 'business-plan',
-      title: 'Business Plan',
-      description: 'Detailed business plan and strategy',
+      title: 'AI Business Plan Generator',
+      description: 'Generate a detailed business plan and strategy with AI assistance',
       type: 'document',
       path: '/business-plan',
       lastUpdated: new Date().toISOString()
     },
     {
+      id: 'pitch-deck',
+      title: 'AI Pitch Deck Creator',
+      description: 'Create a professional investor presentation with AI-powered insights',
+      type: 'presentation',
+      path: '/pitch-deck',
+      lastUpdated: new Date().toISOString()
+    },
+  ]
+
+  const boilerplates: Asset[] = [
+    {
       id: 'task-manager',
-      title: 'Task Manager',
-      description: 'Project tasks and timeline tracking',
+      title: 'Task Manager Template',
+      description: 'Ready-to-use project tasks and timeline tracking template',
       type: 'spreadsheet',
       path: '/task-manager',
       lastUpdated: new Date().toISOString()
     },
     {
       id: 'budget-tracker',
-      title: 'Budget Tracker',
-      description: 'Financial planning and cost management',
+      title: 'Budget Tracker Template',
+      description: 'Pre-built financial planning and cost management spreadsheet',
       type: 'spreadsheet',
       path: '/budget-tracker',
       lastUpdated: new Date().toISOString()
     },
-    {
-      id: 'pitch-deck',
-      title: 'Pitch Deck',
-      description: 'Investor presentation and key metrics',
-      type: 'presentation',
-      path: '/pitch-deck',
-      lastUpdated: new Date().toISOString()
-    },
-    {
-      id: 'coding-course',
-      title: "Don't know how to code? No problem! 🚀",
-      description: "Check out Marc Lou's popular course on coding essentials for entrepreneurs.",
-      type: 'external',
-      path: 'https://codefa.st/?via=james',
-      lastUpdated: new Date().toISOString()
-    }
   ]
 
   const handleDownload = async (assetId: string) => {
@@ -223,6 +270,12 @@ export default function DashboardPage() {
       return
     }
 
+    // Check if any other asset is currently being generated
+    if (Object.values(loadingStates).some(state => state)) {
+      alert('Please wait for the current generation to complete before starting another one.')
+      return
+    }
+
     setLoadingStates(prev => ({ ...prev, [assetId]: true }))
     
     try {
@@ -247,7 +300,8 @@ export default function DashboardPage() {
       const result = await response.json()
       console.log('Generation successful:', result)
       
-      setGeneratedAssets(prev => ({ ...prev, [assetId]: true }))
+      // Only check the status of the asset that was just generated
+      await checkAssetStatus(assetId)
     } catch (error) {
       console.error(`Error generating ${assetId}:`, error)
       alert(`Failed to generate ${assetId}. Please try again.`)
@@ -294,11 +348,11 @@ export default function DashboardPage() {
           <div className="w-full lg:w-80 flex-shrink-0 space-y-4">
             {/* AI Tools Section */}
             <div className="bg-white shadow rounded-lg p-4">
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {/* AI Tools */}
                 <div>
-                  <h2 className="text-sm font-medium text-gray-900 mb-2 relative inline-block">
-                    AI Tools
+                  <h2 className="text-sm font-medium text-gray-900 mb-3 relative inline-block">
+                    AI Development Tools
                     <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
                   </h2>
                   <nav className="space-y-1">
@@ -306,13 +360,23 @@ export default function DashboardPage() {
                        className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
                       Cursor AI <span className="text-xs text-gray-500">- AI code editor</span>
                     </a>
-                    <a href="https://lovable.dev" target="_blank" rel="noopener noreferrer"
-                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
-                      lovable.dev <span className="text-xs text-gray-500">- Product builder</span>
-                    </a>
                     <a href="https://v0.dev" target="_blank" rel="noopener noreferrer"
                        className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
                       V0.dev <span className="text-xs text-gray-500">- AI UI generation</span>
+                    </a>
+                  </nav>
+                </div>
+
+                {/* Product Tools */}
+                <div>
+                  <h2 className="text-sm font-medium text-gray-900 mb-3 relative inline-block">
+                    Product Tools
+                    <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
+                  </h2>
+                  <nav className="space-y-1">
+                    <a href="https://lovable.dev" target="_blank" rel="noopener noreferrer"
+                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                      lovable.dev <span className="text-xs text-gray-500">- Product builder</span>
                     </a>
                     <a href="https://www.producthunt.com" target="_blank" rel="noopener noreferrer"
                        className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
@@ -323,8 +387,8 @@ export default function DashboardPage() {
 
                 {/* Boilerplates */}
                 <div>
-                  <h2 className="text-sm font-medium text-gray-900 mb-2 relative inline-block">
-                    Boilerplates
+                  <h2 className="text-sm font-medium text-gray-900 mb-3 relative inline-block">
+                    Code Templates
                     <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
                   </h2>
                   <nav className="space-y-1">
@@ -347,28 +411,29 @@ export default function DashboardPage() {
 
             {/* Learning Resources */}
             <div className="bg-white shadow rounded-lg p-4">
-              <div className="space-y-4">
-                {/* Learning Resources */}
-                <div>
-                  <h2 className="text-sm font-medium text-gray-900 mb-2 relative inline-block">
-                    Learning Resources
-                    <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
-                  </h2>
-                  <nav className="space-y-1">
-                    <a href="https://marclou.beehiiv.com/p/how-to-get-your-1st-customer-for-a-micro-saas" target="_blank" rel="noopener noreferrer"
-                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
-                      First Customer <span className="text-xs text-gray-500">- MicroSaaS guide</span>
-                    </a>
-                    <a href="https://www.youtube.com/watch?v=QRZ_l7cVzzU" target="_blank" rel="noopener noreferrer"
-                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
-                      Building MVP <span className="text-xs text-gray-500">- Video guide</span>
-                    </a>
-                    <a href="https://www.youtube.com/watch?v=Th8JoIan4dg" target="_blank" rel="noopener noreferrer"
-                       className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
-                      Idea Evaluation <span className="text-xs text-gray-500">- Video guide</span>
-                    </a>
-                  </nav>
-                </div>
+              <div>
+                <h2 className="text-sm font-medium text-gray-900 mb-3 relative inline-block">
+                  Learning Resources
+                  <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
+                </h2>
+                <nav className="space-y-1">
+                  <a href="https://marclou.beehiiv.com/p/how-to-get-your-1st-customer-for-a-micro-saas" target="_blank" rel="noopener noreferrer"
+                     className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                    First Customer <span className="text-xs text-gray-500">- MicroSaaS guide</span>
+                  </a>
+                  <a href="https://www.youtube.com/watch?v=QRZ_l7cVzzU" target="_blank" rel="noopener noreferrer"
+                     className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                    Building MVP <span className="text-xs text-gray-500">- Video guide</span>
+                  </a>
+                  <a href="https://www.youtube.com/watch?v=Th8JoIan4dg" target="_blank" rel="noopener noreferrer"
+                     className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                    Idea Evaluation <span className="text-xs text-gray-500">- Video guide</span>
+                  </a>
+                  <a href="https://codefa.st/?via=james" target="_blank" rel="noopener noreferrer"
+                     className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                    Code Course <span className="text-xs text-gray-500">- Learn to code</span>
+                  </a>
+                </nav>
               </div>
             </div>
 
@@ -399,35 +464,24 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+            {/* Asset Generation Tiles */}
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 mb-8">
               {assets.map((asset) => (
                 <div
                   key={asset.id}
-                  className={`overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200 
-                    ${asset.type === 'external' ? 'bg-emerald-50/70' : 'bg-white'}`}
+                  className="overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200 bg-white"
                 >
-                  <div className={`px-4 py-5 sm:p-6 ${asset.type === 'external' ? 'flex flex-col h-full' : ''}`}>
+                  <div className="px-4 py-5 sm:p-6">
                     <div>
-                      <h3 className={`font-medium ${asset.type === 'external' ? 'text-base' : 'text-lg'} text-gray-900`}>
+                      <h3 className="text-lg font-medium text-gray-900">
                         {asset.title}
                       </h3>
-                      <p className={`mt-1 text-sm ${asset.type === 'external' ? 'text-gray-600' : 'text-gray-500'}`}>
+                      <p className="mt-1 text-sm text-gray-500">
                         {asset.description}
                       </p>
                     </div>
-                    <div className={`mt-4 ${asset.type === 'external' ? 'mt-auto' : 'flex justify-between items-center'}`}>
-                      {asset.type === 'external' ? (
-                        <a
-                          href={asset.path}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
-                                   hover:bg-emerald-600 transform hover:scale-105 active:scale-95
-                                   transition duration-200 ease-in-out w-full justify-center"
-                        >
-                          Start Learning Today →
-                        </a>
-                      ) : loadingStates[asset.id] ? (
+                    <div className="mt-4 flex justify-between items-center">
+                      {loadingStates[asset.id] ? (
                         <div className="flex items-center justify-center w-full">
                           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-500"></div>
                           <span className="ml-2 text-sm text-gray-500">Generating...</span>
@@ -459,7 +513,7 @@ export default function DashboardPage() {
                       )}
                     </div>
                   </div>
-                  {asset.type !== 'external' && generatedAssets[asset.id] && (
+                  {generatedAssets[asset.id] && (
                     <div className="bg-gray-50 px-4 py-4 sm:px-6">
                       <div className="text-sm text-gray-500">
                         Last updated: {new Date(asset.lastUpdated).toLocaleDateString()}
@@ -469,34 +523,52 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
+
+            {/* Coding Course Card */}
+            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg p-6 shadow-sm border border-emerald-100">
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Don't know how to code? No problem! 🚀</h3>
+              <p className="text-gray-600 mb-4">
+                Check out Marc Lou's popular course on coding essentials for entrepreneurs.
+                Perfect for founders who want to build their MVP!
+              </p>
+              <a
+                href="https://codefa.st/?via=james"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
+                         hover:bg-emerald-600 transform hover:scale-105 active:scale-95
+                         transition duration-200 ease-in-out shadow-sm"
+              >
+                Start Learning
+                <ArrowTopRightOnSquareIcon className="ml-2 h-4 w-4" />
+              </a>
+            </div>
           </div>
         </div>
       </div>
 
       {/* New Project Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <div className="mb-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Start New Project?</h3>
-              <p className="text-sm text-gray-500">
-                Starting a new project will reset your current workspace. Please make sure to download any assets you want to keep before proceeding.
-              </p>
-            </div>
-            <div className="mt-6 flex flex-col gap-3">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Start New Project?</h2>
+            <p className="text-gray-600 mb-6">
+              This will clear your current project data and start fresh. Are you sure you want to continue?
+            </p>
+            <div className="flex space-x-4">
               <button
                 onClick={handleConfirmNewProject}
-                className="w-full px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
+                className="flex-1 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
                          hover:bg-emerald-600 transform hover:scale-105 active:scale-95
                          transition duration-200 ease-in-out shadow-sm"
               >
-                Continue to New Project
+                Continue
               </button>
               <button
                 onClick={() => setShowModal(false)}
-                className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium
-                         hover:bg-gray-50 transform hover:scale-105 active:scale-95
-                         transition duration-200 ease-in-out"
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium
+                         hover:bg-gray-200 transform hover:scale-105 active:scale-95
+                         transition duration-200 ease-in-out shadow-sm"
               >
                 Cancel
               </button>

@@ -1,60 +1,38 @@
 import { NextResponse } from 'next/server'
-import { google } from 'googleapis'
-import { getServerSession } from 'next-auth'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const session = await getServerSession()
-    if (!session) {
+    // Initialize Supabase client
+    const supabase = createRouteHandlerClient({ cookies })
+
+    // Check authentication
+    const { data: { session }, error: authError } = await supabase.auth.getSession()
+    if (authError || !session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Initialize Google Sheets API client
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      },
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    })
+    // Get the latest task manager
+    const { data: asset, error: assetError } = await supabase
+      .from('user_assets')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .eq('asset_type', 'task_manager')
+      .eq('status', 'completed')
+      .order('last_updated', { ascending: false })
+      .limit(1)
+      .single()
 
-    const sheets = google.sheets({ version: 'v4', auth })
+    if (assetError) {
+      return NextResponse.json({ error: 'Task manager not found' }, { status: 404 })
+    }
 
-    // Create a new spreadsheet
-    const spreadsheet = await sheets.spreadsheets.create({
-      requestBody: {
-        properties: {
-          title: `Task Manager - ${new Date().toLocaleDateString()}`,
-        },
-        sheets: [
-          { properties: { title: 'Waterfall View' } },
-          { properties: { title: 'Kanban View' } },
-          { properties: { title: 'Categories' } },
-        ],
-      },
-    })
-
-    const spreadsheetId = spreadsheet.data.spreadsheetId
-    const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`
-
-    // Set sharing permissions (anyone with link can view)
-    const drive = google.drive({ version: 'v3', auth })
-    await drive.permissions.create({
-      fileId: spreadsheetId,
-      requestBody: {
-        role: 'reader',
-        type: 'anyone',
-      },
-    })
-
-    return NextResponse.json({
-      googleSheetsUrl: spreadsheetUrl,
-      lastUpdated: new Date().toISOString(),
-    })
+    return NextResponse.json(asset)
   } catch (error: any) {
-    console.error('Error creating task manager spreadsheet:', error)
+    console.error('Error fetching task manager:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to create task manager' },
+      { error: error.message || 'Failed to fetch task manager' },
       { status: 500 }
     )
   }

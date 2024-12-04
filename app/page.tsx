@@ -1,9 +1,9 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
 import { useUser } from '@/context/UserContext'
 import Image from 'next/image'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 const SquigglyUnderline = () => (
   <svg
@@ -25,6 +25,13 @@ const SquigglyUnderline = () => (
 export default function Home() {
   const router = useRouter()
   const { session } = useUser()
+  const supabase = createClientComponentClient()
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/')
+    router.refresh()
+  }
 
   const handleAction = () => {
     if (session) {
@@ -59,14 +66,25 @@ export default function Home() {
                 <a href="#features" className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">Features</a>
                 <a href="#demo" className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">Demo</a>
                 <a href="#pricing" className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">Pricing</a>
-                <button
-                  onClick={handleAction}
-                  className="ml-8 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
-                           hover:bg-emerald-600 transform hover:scale-105 active:scale-95
-                           transition duration-200 ease-in-out shadow-sm"
-                >
-                  {session ? 'Go to Dashboard' : 'Get Started'}
-                </button>
+                {session ? (
+                  <button
+                    onClick={handleLogout}
+                    className="ml-8 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
+                             hover:bg-emerald-600 transform hover:scale-105 active:scale-95
+                             transition duration-200 ease-in-out shadow-sm"
+                  >
+                    Log Out
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => router.push('/login')}
+                    className="ml-8 px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
+                             hover:bg-emerald-600 transform hover:scale-105 active:scale-95
+                             transition duration-200 ease-in-out shadow-sm"
+                  >
+                    Log In
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -108,9 +126,13 @@ export default function Home() {
             <div className="mt-12 relative sm:max-w-lg sm:mx-auto lg:mt-0 lg:max-w-none lg:mx-0 lg:col-span-6 lg:flex lg:items-center">
               <div className="relative mx-auto w-full rounded-lg shadow-lg lg:max-w-md">
                 <div className="relative block w-full bg-white rounded-lg overflow-hidden border border-gray-200">
-                  <div className="w-full aspect-video bg-gray-50 flex items-center justify-center text-gray-400">
-                    Product Demo Video
-                  </div>
+                  <video
+                    className="w-full h-full object-cover"
+                    controls
+                  >
+                    <source src="/videos/demo_draft.mp4" type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
                 </div>
               </div>
             </div>
@@ -210,17 +232,13 @@ export default function Home() {
           {/* Video Container */}
           <div className="max-w-3xl mx-auto relative">
             <div className="aspect-video bg-gray-50 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <button className="group relative w-20 h-20 focus:outline-none">
-                  <div className="absolute inset-0 bg-emerald-500 rounded-full opacity-20 
-                                group-hover:opacity-30 transition-opacity"></div>
-                  <div className="absolute inset-2 bg-emerald-500 rounded-full flex items-center justify-center">
-                    <svg className="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  </div>
-                </button>
-              </div>
+              <video
+                className="w-full h-full object-cover"
+                controls
+              >
+                <source src="/videos/demo_draft.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
             </div>
             <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-emerald-50 rounded-full 
                           opacity-50 z-0"></div>

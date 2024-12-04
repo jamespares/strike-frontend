@@ -46,19 +46,30 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
   const onSubmit = async (data: FormData) => {
     try {
       setIsSubmitting(true)
-      if (!session?.user.id) {
+      if (!session?.user?.id) {
         console.error('No user ID found')
         return
       }
 
-      // Directly upsert the new response
+      // Get existing responses first
+      const { data: existingResponses } = await supabase
+        .from('survey_responses')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .single()
+
+      // Merge new response with existing ones
+      const updatedResponses = {
+        ...(existingResponses || {}),
+        user_id: session.user.id,
+        updated_at: new Date().toISOString(),
+        [question.fieldName]: data.answer
+      }
+
+      // Upsert the merged responses
       const { error } = await supabase
         .from('survey_responses')
-        .upsert({
-          user_id: session.user.id,
-          updated_at: new Date().toISOString(),
-          [question.fieldName]: data.answer
-        }, {
+        .upsert(updatedResponses, {
           onConflict: 'user_id'
         })
 

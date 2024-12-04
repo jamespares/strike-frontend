@@ -4,9 +4,12 @@ import { SurveyQuestion } from '@/data/surveyQuestions'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import fs from 'fs/promises'
 import path from 'path'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 
 interface SurveyResponse {
   problem: string
+  key_goals: string
   key_risks: string
   deadline: string
   budget: string | number
@@ -33,6 +36,15 @@ interface IdeaEvaluation {
 
 export async function POST(request: Request) {
   try {
+    // Initialize Supabase client
+    const supabase = createRouteHandlerClient({ cookies })
+
+    // Check authentication
+    const { data: { session }, error: authError } = await supabase.auth.getSession()
+    if (authError || !session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { responses, questions } = await request.json() as {
       responses: SurveyResponse
       questions: SurveyQuestion[]
@@ -46,7 +58,29 @@ export async function POST(request: Request) {
       )
     }
 
+    // Create initial asset record
+    const { data: asset, error: assetError } = await supabase
+      .from('user_assets')
+      .insert({
+        user_id: session.user.id,
+        asset_type: 'idea_evaluation',
+        title: 'Idea Evaluation',
+        status: 'generating',
+        content: null
+      })
+      .select()
+      .single()
+
+    if (assetError) {
+      console.error('Error creating asset record:', assetError)
+      return NextResponse.json(
+        { error: 'Failed to initialize asset generation' },
+        { status: 500 }
+      )
+    }
+
     console.log('Generating idea evaluation...')
+    console.log('Starting evaluation generation with responses:', responses)
     const evaluation = await generateIdeaEvaluation(responses, questions)
     
     if (!evaluation) {
@@ -279,12 +313,28 @@ export async function POST(request: Request) {
     })
 
     const pdfBytes = await pdfDoc.save()
-    
-    return new Response(pdfBytes, {
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename="idea-evaluation.pdf"'
-      }
+    const pdfBase64 = Buffer.from(pdfBytes).toString('base64')
+
+    // Update the asset record with both evaluation and PDF
+    const { error: updateError } = await supabase
+      .from('user_assets')
+      .update({
+        content: {
+          evaluation: JSON.parse(JSON.stringify(evaluation)), // Ensure evaluation is serializable
+          pdfBase64
+        },
+        status: 'completed'
+      })
+      .eq('id', asset.id)
+
+    if (updateError) {
+      throw new Error(`Database error: ${updateError.message}`)
+    }
+
+    return NextResponse.json({
+      message: 'Idea evaluation generated successfully',
+      assetId: asset.id,
+      evaluation: JSON.parse(JSON.stringify(evaluation)) // Ensure evaluation is serializable
     })
   } catch (error: any) {
     console.error('Error generating idea evaluation:', error)
@@ -331,23 +381,57 @@ async function generateIdeaEvaluation(responses: SurveyResponse, questions: Surv
       {
         role: "system",
         content: `You are an expert startup idea evaluator with experience from Y Combinator and top VCs.
-        Evaluate business ideas based on:
-        1. Problem (pain point clarity, urgency, market need)
-        2. Market (size, growth, competition, barriers)
-        3. Solution (uniqueness, feasibility, competitive advantage)
-        4. Execution Feasibility (technical, timeline, budget)
-        5. Business Model (revenue potential, scalability, unit economics)
-
-        Provide concise, actionable feedback in JSON format.`
+        Evaluate business ideas and return a JSON object with this exact structure:
+        {
+          "problemScore": {
+            "score": number (0-100),
+            "analysis": string,
+            "positives": string[],
+            "negatives": string[]
+          },
+          "marketScore": {
+            "score": number (0-100),
+            "analysis": string,
+            "positives": string[],
+            "negatives": string[]
+          },
+          "solutionScore": {
+            "score": number (0-100),
+            "analysis": string,
+            "positives": string[],
+            "negatives": string[]
+          },
+          "feasibilityScore": {
+            "score": number (0-100),
+            "analysis": string,
+            "positives": string[],
+            "negatives": string[]
+          },
+          "businessModelScore": {
+            "score": number (0-100),
+            "analysis": string,
+            "positives": string[],
+            "negatives": string[]
+          },
+          "overallScore": number (0-100),
+          "recommendation": string,
+          "nextSteps": string[]
+        }`
       },
       {
         role: "user",
         content: `Evaluate this startup idea:
         Problem: ${responses.problem}
+        Solution/Goals: ${responses.key_goals}
         Key Risks: ${responses.key_risks}
         Timeline: ${responses.deadline}
         Budget: $${budget}
-        Revenue Model: ${responses.pricing_model}`
+        Revenue Model: ${responses.pricing_model}
+        
+        Provide a thorough evaluation following the exact JSON structure specified.
+        Ensure all scores are numbers between 0-100.
+        Include 3-5 points in each positives/negatives array.
+        Provide 3-5 concrete next steps.`
       }
     ],
     temperature: 0.7,

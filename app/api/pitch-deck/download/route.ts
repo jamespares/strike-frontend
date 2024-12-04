@@ -1,55 +1,42 @@
 import { NextResponse } from 'next/server'
-import { google } from 'googleapis'
-import { getServerSession } from 'next-auth'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession()
-    if (!session) {
+    // Initialize Supabase client
+    const supabase = createRouteHandlerClient({ cookies })
+
+    // Check authentication
+    const { data: { session }, error: authError } = await supabase.auth.getSession()
+    if (authError || !session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { searchParams } = new URL(request.url)
-    const format = searchParams.get('format') || 'pptx'
-    const presentationId = searchParams.get('id')
+    // Get the latest pitch deck
+    const { data: asset, error: assetError } = await supabase
+      .from('user_assets')
+      .select('content')
+      .eq('user_id', session.user.id)
+      .eq('asset_type', 'pitch_deck')
+      .eq('status', 'completed')
+      .order('last_updated', { ascending: false })
+      .limit(1)
+      .single()
 
-    if (!presentationId) {
-      return NextResponse.json({ error: 'Presentation ID is required' }, { status: 400 })
+    if (assetError || !asset) {
+      return NextResponse.json({ error: 'Pitch deck not found' }, { status: 404 })
     }
 
-    // Initialize Google Drive API client
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      },
-      scopes: ['https://www.googleapis.com/auth/drive.readonly'],
-    })
+    // Convert base64 PDF back to buffer
+    const pdfBuffer = Buffer.from(asset.content.pdfBase64, 'base64')
 
-    const drive = google.drive({ version: 'v3', auth })
-
-    // Export the presentation in the requested format
-    const mimeType = format === 'key' 
-      ? 'application/vnd.apple.keynote'
-      : 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-
-    const response = await drive.files.export({
-      fileId: presentationId,
-      mimeType: mimeType,
-    }, {
-      responseType: 'arraybuffer'
-    })
-
-    const buffer = Buffer.from(response.data as ArrayBuffer)
-
-    // Set appropriate headers for file download
-    const headers = new Headers()
-    headers.set('Content-Type', mimeType)
-    headers.set('Content-Disposition', `attachment; filename="pitch-deck.${format}"`)
-
-    return new NextResponse(buffer, {
-      status: 200,
-      headers: headers,
+    // Return the PDF
+    return new NextResponse(pdfBuffer, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': 'attachment; filename="pitch-deck.pdf"'
+      }
     })
   } catch (error: any) {
     console.error('Error downloading pitch deck:', error)

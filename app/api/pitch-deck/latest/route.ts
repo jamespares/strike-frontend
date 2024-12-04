@@ -1,53 +1,38 @@
 import { NextResponse } from 'next/server'
-import { google } from 'googleapis'
-import { getServerSession } from 'next-auth'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const session = await getServerSession()
-    if (!session) {
+    // Initialize Supabase client
+    const supabase = createRouteHandlerClient({ cookies })
+
+    // Check authentication
+    const { data: { session }, error: authError } = await supabase.auth.getSession()
+    if (authError || !session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Initialize Google Slides API client
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      },
-      scopes: ['https://www.googleapis.com/auth/presentations'],
-    })
+    // Get the latest pitch deck
+    const { data: asset, error: assetError } = await supabase
+      .from('user_assets')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .eq('asset_type', 'pitch_deck')
+      .eq('status', 'completed')
+      .order('last_updated', { ascending: false })
+      .limit(1)
+      .single()
 
-    const slides = google.slides({ version: 'v1', auth })
+    if (assetError) {
+      return NextResponse.json({ error: 'Pitch deck not found' }, { status: 404 })
+    }
 
-    // Create a new presentation
-    const presentation = await slides.presentations.create({
-      requestBody: {
-        title: `Pitch Deck - ${new Date().toLocaleDateString()}`,
-      },
-    })
-
-    const presentationId = presentation.data.presentationId
-    const presentationUrl = `https://docs.google.com/presentation/d/${presentationId}/edit`
-
-    // Set sharing permissions (anyone with link can view)
-    const drive = google.drive({ version: 'v3', auth })
-    await drive.permissions.create({
-      fileId: presentationId!,
-      requestBody: {
-        role: 'reader',
-        type: 'anyone',
-      },
-    })
-
-    return NextResponse.json({
-      googleSlidesUrl: presentationUrl,
-      lastUpdated: new Date().toISOString(),
-    })
+    return NextResponse.json(asset)
   } catch (error: any) {
-    console.error('Error creating pitch deck presentation:', error)
+    console.error('Error fetching pitch deck:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to create pitch deck' },
+      { error: error.message || 'Failed to fetch pitch deck' },
       { status: 500 }
     )
   }

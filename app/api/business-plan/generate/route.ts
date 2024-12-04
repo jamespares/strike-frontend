@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server'
 import { openai } from '@/lib/clients/openaiClient'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 import { SurveyQuestion } from '@/data/surveyQuestions'
-import { supabase } from '@/lib/clients/supabaseClient'
 
 interface SurveyResponse {
   problem: string
@@ -25,20 +24,13 @@ interface BusinessPlanSection {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
+    // Initialize Supabase client
+    const supabase = createRouteHandlerClient({ cookies })
+
+    // Check authentication
+    const { data: { session }, error: authError } = await supabase.auth.getSession()
+    if (authError || !session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Get user ID from Supabase using email
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', session.user.email)
-      .single()
-
-    if (userError || !userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     const { responses, questions } = await request.json() as {
@@ -53,26 +45,55 @@ export async function POST(request: Request) {
       )
     }
 
-    const prompt = `Create a detailed business plan based on the following survey responses:
-      Problem: ${responses.problem}
-      Key Risks: ${responses.key_risks}
-      Timeline: ${responses.deadline}
-      Budget: $${responses.budget}
-      Revenue Model: ${responses.pricing_model}
-      
-      Format the response as a business plan with sections for:
-      - Executive Summary
-      - Market Analysis
-      - Business Model
-      - Financial Projections
-      
-      Include relevant metrics and KPIs where appropriate.
-      Make it detailed but concise, focusing on key information investors need.`
+    // Create initial asset record
+    const { data: asset, error: assetError } = await supabase
+      .from('user_assets')
+      .insert({
+        user_id: session.user.id,
+        asset_type: 'business_plan',
+        title: 'Business Plan',
+        status: 'generating',
+        content: null
+      })
+      .select()
+      .single()
+
+    if (assetError) {
+      console.error('Error creating asset record:', assetError)
+      return NextResponse.json(
+        { error: 'Failed to initialize asset generation' },
+        { status: 500 }
+      )
+    }
+
+    // Generate business plan content using OpenAI
+    const prompt = `Create a detailed business plan based on:
+    Problem: ${responses.problem}
+    Key Risks: ${responses.key_risks}
+    Timeline: ${responses.deadline}
+    Budget: $${responses.budget}
+    Revenue Model: ${responses.pricing_model}
+    
+    Format the response as a JSON object with sections array containing:
+    - Executive Summary
+    - Problem Statement
+    - Solution Overview
+    - Market Analysis
+    - Business Model
+    - Financial Projections
+    - Risk Analysis
+    - Implementation Timeline
+    
+    Each section should have:
+    - title: string
+    - content: string[] (bullet points)
+    - metrics: (optional) array of { label, value, unit }`
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
+      response_format: { type: "json_object" }
     })
 
     const content = completion.choices[0].message.content
@@ -80,30 +101,25 @@ export async function POST(request: Request) {
       throw new Error('No content generated from OpenAI')
     }
 
-    const businessPlan = JSON.parse(content) as { sections: BusinessPlanSection[] }
+    const businessPlan = JSON.parse(content)
 
-    // Store in user_assets table
-    const { data: asset, error: dbError } = await supabase
+    // Update the asset record with the generated content
+    const { error: updateError } = await supabase
       .from('user_assets')
-      .insert({
-        user_id: userData.id,
-        asset_type: 'business_plan',
-        title: 'Business Plan',
+      .update({
         content: businessPlan,
-        status: 'completed',
-        last_updated: new Date().toISOString(),
+        status: 'completed'
       })
-      .select()
-      .single()
+      .eq('id', asset.id)
 
-    if (dbError) {
-      throw new Error(`Database error: ${dbError.message}`)
+    if (updateError) {
+      throw new Error(`Database error: ${updateError.message}`)
     }
 
     return NextResponse.json({
-      ...businessPlan,
-      assetId: asset.id,
       message: 'Business plan generated successfully',
+      assetId: asset.id,
+      ...businessPlan
     })
   } catch (error: any) {
     console.error('Error generating business plan:', error)

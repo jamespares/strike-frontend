@@ -1,23 +1,49 @@
 'use client'
 
 import { useState } from 'react'
-import { useUser } from '@/context/UserContext'
 import { useRouter } from 'next/navigation'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export default function LoginPage() {
-  const { signIn, signInWithGoogle } = useUser()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const supabase = createClientComponentClient()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setLoading(true)
 
     try {
-      await signIn(email, password)
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (error) throw error
+
       router.push('/dashboard')
+      router.refresh()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      })
+
+      if (error) throw error
     } catch (err: any) {
       setError(err.message)
     }
@@ -40,6 +66,7 @@ export default function LoginPage() {
               placeholder="Email"
               className="w-full px-4 py-2 bg-white rounded-lg border border-gray-200 
                        text-gray-900 placeholder-gray-400 focus:outline-none focus:border-emerald-500"
+              disabled={loading}
             />
           </div>
           <div>
@@ -51,6 +78,7 @@ export default function LoginPage() {
               placeholder="Password"
               className="w-full px-4 py-2 bg-white rounded-lg border border-gray-200 
                        text-gray-900 placeholder-gray-400 focus:outline-none focus:border-emerald-500"
+              disabled={loading}
             />
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}
@@ -59,8 +87,9 @@ export default function LoginPage() {
             className="w-full px-4 py-3 bg-emerald-500 text-white rounded-lg text-sm font-medium
                      hover:bg-emerald-600 transform hover:scale-105 active:scale-95
                      transition duration-200 ease-in-out shadow-sm"
+            disabled={loading}
           >
-            Login
+            {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
         <div className="my-4 flex items-center">
@@ -69,10 +98,11 @@ export default function LoginPage() {
           <div className="flex-1 border-t border-gray-200"></div>
         </div>
         <button
-          onClick={signInWithGoogle}
+          onClick={handleGoogleLogin}
           className="w-full px-4 py-3 bg-white border border-gray-200 text-gray-600 rounded-lg 
                    text-sm font-medium hover:bg-gray-50 transform hover:scale-105 active:scale-95
                    transition duration-200 ease-in-out shadow-sm flex items-center justify-center gap-2"
+          disabled={loading}
         >
           <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
           Sign in with Google

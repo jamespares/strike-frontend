@@ -13,26 +13,27 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get the latest budget tracker
+    // Get the latest idea evaluation
     const { data: asset, error: assetError } = await supabase
       .from('user_assets')
-      .select('*')
+      .select('content')
       .eq('user_id', session.user.id)
-      .eq('asset_type', 'budget_tracker')
+      .eq('asset_type', 'idea_evaluation')
       .eq('status', 'completed')
       .order('last_updated', { ascending: false })
       .limit(1)
       .single()
 
-    if (assetError) {
-      return NextResponse.json({ error: 'Budget tracker not found' }, { status: 404 })
+    if (assetError || !asset) {
+      return NextResponse.json({ error: 'Idea evaluation not found' }, { status: 404 })
     }
 
-    return NextResponse.json(asset)
+    // Return just the evaluation data, not the PDF
+    return NextResponse.json(asset.content.evaluation)
   } catch (error: any) {
-    console.error('Error fetching budget tracker:', error)
+    console.error('Error fetching idea evaluation:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch budget tracker' },
+      { error: error.message || 'Failed to fetch idea evaluation' },
       { status: 500 }
     )
   }

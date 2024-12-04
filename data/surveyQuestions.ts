@@ -21,7 +21,7 @@ export interface SurveyQuestion {
 export const surveyQuestions: SurveyQuestion[] = [
   {
     id: 1,
-    fieldName: 'solution',
+    fieldName: 'key_goals',
     question: "What do you want to build?",
     placeholder: "I'm building a SaaS tool that helps freelancers automate their time tracking and expense management. It uses Next.js for the frontend and Stripe for payments. The goal is to help freelancers save 5+ hours per month on admin work.",
     guidance: {

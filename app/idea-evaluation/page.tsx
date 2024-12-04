@@ -3,16 +3,22 @@
 import { useEffect, useState } from 'react'
 import DocumentViewer from '@/components/viewers/DocumentViewer'
 
+interface CategoryData {
+  score: number
+  analysis: string
+  positives: string[]
+  negatives: string[]
+}
+
 interface IdeaEvaluation {
-  sections: {
-    title: string
-    content: string | string[]
-    metrics?: {
-      label: string
-      value: string | number
-      unit?: string
-    }[]
-  }[]
+  problemScore: CategoryData
+  marketScore: CategoryData
+  solutionScore: CategoryData
+  feasibilityScore: CategoryData
+  businessModelScore: CategoryData
+  overallScore: number
+  recommendation: string
+  nextSteps: string[]
 }
 
 export default function IdeaEvaluationPage() {
@@ -60,10 +66,88 @@ export default function IdeaEvaluationPage() {
     )
   }
 
+  // Transform evaluation data to match DocumentViewer format
+  const content = {
+    sections: [
+      {
+        title: 'Overall Evaluation',
+        content: [
+          `Overall Score: ${evaluation.overallScore}/100`,
+          'Recommendation:',
+          evaluation.recommendation
+        ]
+      },
+      {
+        title: 'Problem Analysis',
+        content: [
+          `Score: ${evaluation.problemScore.score}/100`,
+          'Analysis:',
+          evaluation.problemScore.analysis,
+          'Strengths:',
+          ...evaluation.problemScore.positives.map(p => `• ${p}`),
+          'Weaknesses:',
+          ...evaluation.problemScore.negatives.map(n => `• ${n}`)
+        ]
+      },
+      {
+        title: 'Market Analysis',
+        content: [
+          `Score: ${evaluation.marketScore.score}/100`,
+          'Analysis:',
+          evaluation.marketScore.analysis,
+          'Opportunities:',
+          ...evaluation.marketScore.positives.map(p => `• ${p}`),
+          'Threats:',
+          ...evaluation.marketScore.negatives.map(n => `• ${n}`)
+        ]
+      },
+      {
+        title: 'Solution Analysis',
+        content: [
+          `Score: ${evaluation.solutionScore.score}/100`,
+          'Analysis:',
+          evaluation.solutionScore.analysis,
+          'Strengths:',
+          ...evaluation.solutionScore.positives.map(p => `• ${p}`),
+          'Weaknesses:',
+          ...evaluation.solutionScore.negatives.map(n => `• ${n}`)
+        ]
+      },
+      {
+        title: 'Feasibility Analysis',
+        content: [
+          `Score: ${evaluation.feasibilityScore.score}/100`,
+          'Analysis:',
+          evaluation.feasibilityScore.analysis,
+          'Advantages:',
+          ...evaluation.feasibilityScore.positives.map(p => `• ${p}`),
+          'Challenges:',
+          ...evaluation.feasibilityScore.negatives.map(n => `• ${n}`)
+        ]
+      },
+      {
+        title: 'Business Model Analysis',
+        content: [
+          `Score: ${evaluation.businessModelScore.score}/100`,
+          'Analysis:',
+          evaluation.businessModelScore.analysis,
+          'Strengths:',
+          ...evaluation.businessModelScore.positives.map(p => `• ${p}`),
+          'Risks:',
+          ...evaluation.businessModelScore.negatives.map(n => `• ${n}`)
+        ]
+      },
+      {
+        title: 'Next Steps',
+        content: evaluation.nextSteps.map((step, index) => `${index + 1}. ${step}`)
+      }
+    ]
+  }
+
   return (
     <DocumentViewer
       title="Idea Evaluation"
-      content={evaluation}
+      content={content}
       onDownload={handleDownload}
       downloadFormat="PDF"
     />

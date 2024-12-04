@@ -7,6 +7,8 @@ import OpenAI from 'openai'
 import { ProjectPlan } from '@/lib/types/survey'
 import { SurveyQuestion } from '@/data/surveyQuestions'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 
 const execAsync = promisify(exec)
 const openai = new OpenAI({
@@ -62,37 +64,93 @@ async function generateD2Content(projectPlan: ProjectPlan) {
 // Handle the route
 export async function POST(request: NextRequest) {
   try {
-    const { projectPlan } = await request.json()
-    if (!projectPlan) {
-      console.error('Project plan required for roadmap generation')
-      return NextResponse.json({ error: 'Project plan required' }, { status: 400 })
+    // Initialize Supabase client
+    const supabase = createRouteHandlerClient({ cookies })
+
+    // Check authentication
+    const { data: { session }, error: authError } = await supabase.auth.getSession()
+    if (authError || !session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    console.log('Generating D2 content...')
-    const d2Content = await generateD2Content(projectPlan)
+    const { responses, questions } = await request.json() as {
+      responses: SurveyResponse
+      questions: SurveyQuestion[]
+    }
+
+    if (!responses || !questions) {
+      return NextResponse.json(
+        { error: 'Survey responses and questions are required' },
+        { status: 400 }
+      )
+    }
+
+    // Create initial asset record
+    const { data: asset, error: assetError } = await supabase
+      .from('user_assets')
+      .insert({
+        user_id: session.user.id,
+        asset_type: 'roadmap',
+        title: 'Project Roadmap',
+        status: 'generating',
+        content: null
+      })
+      .select()
+      .single()
+
+    if (assetError) {
+      console.error('Error creating asset record:', assetError)
+      return NextResponse.json(
+        { error: 'Failed to initialize asset generation' },
+        { status: 500 }
+      )
+    }
+
+    // Generate D2 diagram content using OpenAI
+    const prompt = `Create a D2 diagram showing project phases and milestones based on:
+    Problem: ${responses.problem}
+    Key Risks: ${responses.key_risks}
+    Timeline: ${responses.deadline}
+    Budget: $${responses.budget}
+    Revenue Model: ${responses.pricing_model}
     
+    Use valid D2 syntax with these style guidelines:
+    - Use 'fill' instead of 'background-color'
+    - Use 'stroke' instead of 'border-color'
+    - Use 'stroke-width' instead of 'border-width'
+    - Use numeric values for border-radius (e.g. '4')
+    
+    Create a professional roadmap with:
+    1. Clear phase boxes
+    2. Connected milestones
+    3. Proper styling for visual hierarchy
+    4. Logical flow between elements
+    5. Timeline indicators`
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7
+    })
+
+    const d2Content = completion.choices[0].message.content
     if (!d2Content) {
-      console.error('Failed to generate D2 content')
-      return NextResponse.json({ error: 'Failed to generate roadmap content' }, { status: 500 })
+      throw new Error('No content generated from OpenAI')
     }
 
-    // Log the generated D2 content for debugging
-    console.log('Generated D2 content:', d2Content)
-    
     // Create temp directory if it doesn't exist
-    console.log('Setting up temp directory...')
     const tempDir = path.join(process.cwd(), 'tmp')
     await mkdir(tempDir, { recursive: true })
-    
+
     // Generate unique filenames
     const timestamp = Date.now()
     const inputPath = path.join(tempDir, `roadmap-${timestamp}.d2`)
     const outputPath = path.join(tempDir, `roadmap-${timestamp}.pdf`)
-    
-    console.log('Writing D2 content to temp file...')
+
+    // Write D2 content to temp file
     await writeFile(inputPath, d2Content)
-    
-    console.log('Generating PDF using D2...')
+
+    // Generate PDF using D2
     try {
       await execAsync(`d2 "${inputPath}" "${outputPath}" --layout=dagre --theme=200`)
     } catch (error: any) {
@@ -100,17 +158,36 @@ export async function POST(request: NextRequest) {
       console.error('D2 stderr:', error.stderr)
       throw new Error('Failed to generate roadmap diagram: ' + error.stderr)
     }
-    
-    console.log('Reading generated PDF...')
+
+    // Read generated PDF
     const pdfBuffer = await readFile(outputPath)
-    
-    console.log('Cleaning up temp files...')
+
+    // Clean up temp files
     await Promise.all([
       unlink(inputPath).catch(err => console.error('Failed to delete input file:', err)),
       unlink(outputPath).catch(err => console.error('Failed to delete output file:', err))
     ])
 
-    console.log('Sending PDF response...')
+    // Convert PDF to base64 for storage
+    const pdfBase64 = pdfBuffer.toString('base64')
+
+    // Update the asset record with the generated content
+    const { error: updateError } = await supabase
+      .from('user_assets')
+      .update({
+        content: {
+          pdfBase64,
+          diagramData: d2Content
+        },
+        status: 'completed'
+      })
+      .eq('id', asset.id)
+
+    if (updateError) {
+      throw new Error(`Database error: ${updateError.message}`)
+    }
+
+    // Return PDF directly in the response
     return new NextResponse(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
@@ -118,11 +195,11 @@ export async function POST(request: NextRequest) {
       }
     })
   } catch (error: any) {
-    console.error('Roadmap generation error:', error)
-    if (error.stderr) {
-      console.error('D2 stderr:', error.stderr)
-    }
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('Error generating roadmap:', error)
+    return NextResponse.json(
+      { error: error.message || 'Failed to generate roadmap' },
+      { status: 500 }
+    )
   }
 }
 
