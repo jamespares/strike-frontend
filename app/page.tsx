@@ -201,16 +201,6 @@ export default function Home() {
                 description: "Clear visual diagram showing your path from idea to launch"
               },
               {
-                icon: "✅",
-                title: "Task Manager",
-                description: "Detailed work breakdown structure with every task needed to launch"
-              },
-              {
-                icon: "💰",
-                title: "Cost Tracker",
-                description: "Spreadsheet to track and manage all launch-related expenses"
-              },
-              {
                 icon: "🎭",
                 title: "Pitch Deck",
                 description: "Professional pitch deck ready to present to investors"
@@ -386,7 +376,7 @@ export default function Home() {
                 <span className="text-2xl text-emerald-600">4</span>
               </div>
               <h3 className="text-lg font-semibold mb-2">Start Executing</h3>
-              <p className="text-gray-500">Use the task manager and cost tracker to begin your launch</p>
+              <p className="text-gray-500">Begin executing your launch strategy with your roadmap</p>
             </div>
           </div>
         </div>

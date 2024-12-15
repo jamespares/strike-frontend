@@ -3,7 +3,6 @@ import { AssetGenerationStatus } from '@/lib/types/assets'
 const steps = [
   { status: AssetGenerationStatus.GENERATING_PLAN, label: 'Project Plan' },
   { status: AssetGenerationStatus.GENERATING_GANTT, label: 'Timeline' },
-  { status: AssetGenerationStatus.GENERATING_BUDGET, label: 'Budget' },
   { status: AssetGenerationStatus.GENERATING_RISK, label: 'Risks' },
   { status: AssetGenerationStatus.GENERATING_ROADMAP, label: 'Roadmap' },
 ]

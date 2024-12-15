@@ -69,14 +69,6 @@ export default function Payment() {
                   </li>
                   <li className="flex items-center text-gray-600">
                     <span className="text-emerald-500 mr-2">✓</span>
-                    Detailed timeline with tasks
-                  </li>
-                  <li className="flex items-center text-gray-600">
-                    <span className="text-emerald-500 mr-2">✓</span>
-                    Budget tracking tools
-                  </li>
-                  <li className="flex items-center text-gray-600">
-                    <span className="text-emerald-500 mr-2">✓</span>
                     Risk management strategies
                   </li>
                   <li className="flex items-center text-gray-600">

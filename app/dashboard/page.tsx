@@ -60,22 +60,6 @@ export default function DashboardPage() {
       lastUpdated: new Date().toISOString()
     },
     {
-      id: 'task-manager',
-      title: 'Task List',
-      description: 'Tasks and timeline for launching your business',
-      type: 'spreadsheet',
-      path: '/task-manager',
-      lastUpdated: new Date().toISOString()
-    },
-    {
-      id: 'budget-tracker',
-      title: 'Budget Tracker',
-      description: 'Keep track of all your costs',
-      type: 'spreadsheet',
-      path: '/budget-tracker',
-      lastUpdated: new Date().toISOString()
-    },
-    {
       id: 'pitch-deck',
       title: 'Pitch Deck',
       description: 'Presentation to show off your idea',
@@ -88,7 +72,7 @@ export default function DashboardPage() {
   useEffect(() => {
     // Check which assets have been generated
     const checkGeneratedAssets = async () => {
-      const assetIds = ['idea-evaluation', 'business-plan', 'task-manager', 'budget-tracker', 'pitch-deck']
+      const assetIds = ['idea-evaluation', 'business-plan', 'pitch-deck']
       const states: Record<string, boolean> = {}
       
       for (const id of assetIds) {
@@ -164,7 +148,7 @@ export default function DashboardPage() {
         // Check for assets generated from this latest response
         if (responses) {
           const states: Record<string, boolean> = {}
-          const allAssets = ['idea-evaluation', 'business-plan', 'task-manager', 'budget-tracker', 'pitch-deck']
+          const allAssets = ['idea-evaluation', 'business-plan', 'pitch-deck']
           
           for (const assetId of allAssets) {
             try {
@@ -200,7 +184,7 @@ export default function DashboardPage() {
       }
       
       console.log('Checking assets for survey response:', surveyResponses.id)
-      const allAssets = ['idea-evaluation', 'business-plan', 'task-manager', 'budget-tracker', 'pitch-deck']
+      const allAssets = ['idea-evaluation', 'business-plan', 'pitch-deck']
       const states: Record<string, boolean> = {}
       
       for (const assetId of allAssets) {
@@ -261,24 +245,7 @@ export default function DashboardPage() {
     },
   ]
 
-  const boilerplates: Asset[] = [
-    {
-      id: 'task-manager',
-      title: 'Task Manager Template',
-      description: 'Ready-to-use project tasks and timeline tracking template',
-      type: 'spreadsheet',
-      path: '/task-manager',
-      lastUpdated: new Date().toISOString()
-    },
-    {
-      id: 'budget-tracker',
-      title: 'Budget Tracker Template',
-      description: 'Pre-built financial planning and cost management spreadsheet',
-      type: 'spreadsheet',
-      path: '/budget-tracker',
-      lastUpdated: new Date().toISOString()
-    },
-  ]
+  const boilerplates: Asset[] = []
 
   const handleDownload = async (assetId: string) => {
     try {
@@ -300,9 +267,6 @@ export default function DashboardPage() {
 
   const getFileExtension = (assetId: string) => {
     switch (assetId) {
-      case 'task-manager':
-      case 'budget-tracker':
-        return 'xlsx'
       case 'pitch-deck':
         return 'pptx'
       default:
@@ -347,7 +311,7 @@ export default function DashboardPage() {
     }
 
     setIsGeneratingAll(true)
-    const allAssets = ['idea-evaluation', 'business-plan', 'task-manager', 'budget-tracker', 'pitch-deck']
+    const allAssets = ['idea-evaluation', 'business-plan', 'pitch-deck']
     const newLoadingStates = { ...loadingStates }
     allAssets.forEach(id => newLoadingStates[id] = true)
     setLoadingStates(newLoadingStates)
