@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import DocumentViewer from '@/components/viewers/DocumentViewer'
+import { DocumentViewer } from '@/components'
 
 interface Roadmap {
   sections: {
@@ -63,7 +63,7 @@ export default function RoadmapPage() {
   return (
     <DocumentViewer
       title="Project Roadmap"
-      content={{ sections: roadmap?.sections || [] }}
+      sections={roadmap?.sections || []}
       onDownload={handleDownload}
       downloadFormat="PDF"
     />

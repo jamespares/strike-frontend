@@ -1,10 +1,10 @@
 import { ButtonHTMLAttributes } from 'react'
 import { Download } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 interface DownloadButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'default' | 'outline'
   isLoading?: boolean
+  format?: string
 }
 
 export function DownloadButton({
@@ -13,6 +13,7 @@ export function DownloadButton({
   isLoading,
   disabled,
   className = '',
+  format = 'PDF',
   ...props
 }: DownloadButtonProps) {
   const baseStyles =
@@ -32,7 +33,7 @@ export function DownloadButton({
       {...props}
     >
       <Download className="h-4 w-4" />
-      {children}
+      {children || `Download ${format}`}
     </button>
   )
 }

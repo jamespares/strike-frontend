@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import DocumentViewer from '../components/viewers/DocumentViewer'
+import { DocumentViewer } from '@/components'
 
 interface BusinessPlanSection {
   title: string
@@ -62,10 +62,10 @@ export default function BusinessPlanPage() {
   }
 
   const content = {
-    sections: businessPlan.sections.map((section) => ({
+    sections: businessPlan.sections.map(section => ({
       title: section.title,
       content: Array.isArray(section.content) ? section.content : [section.content],
-      metrics: section.metrics?.map((metric) => ({
+      metrics: section.metrics?.map(metric => ({
         label: metric.label,
         value: metric.value,
         unit: metric.unit,
@@ -76,7 +76,7 @@ export default function BusinessPlanPage() {
   return (
     <DocumentViewer
       title="Business Plan"
-      content={content}
+      sections={content.sections}
       onDownload={handleDownload}
       downloadFormat="PDF"
     />

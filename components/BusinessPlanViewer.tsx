@@ -22,11 +22,7 @@ interface BusinessPlanViewerProps {
   filePath?: string
 }
 
-export default function BusinessPlanViewer({
-  assetId,
-  content,
-  filePath,
-}: BusinessPlanViewerProps) {
+export const BusinessPlanViewer = ({ assetId, content, filePath }: BusinessPlanViewerProps) => {
   const supabase = createClientComponentClient()
 
   const downloadPDF = async () => {

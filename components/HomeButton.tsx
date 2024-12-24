@@ -3,7 +3,7 @@
 import { useRouter, usePathname } from 'next/navigation'
 import { RiHome4Fill } from 'react-icons/ri'
 
-export default function HomeButton() {
+export const HomeButton = () => {
   const router = useRouter()
   const pathname = usePathname()
 

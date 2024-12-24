@@ -1,4 +1,5 @@
 import React from 'react'
+import { DownloadButton } from '@/components'
 
 interface Metric {
   label: string
@@ -13,12 +14,25 @@ interface Section {
 }
 
 interface DocumentViewerProps {
+  title: string
   sections: Section[]
+  onDownload?: () => Promise<void>
+  downloadFormat?: string
 }
 
-const DocumentViewer: React.FC<DocumentViewerProps> = ({ sections }) => {
+export const DocumentViewer: React.FC<DocumentViewerProps> = ({
+  title,
+  sections,
+  onDownload,
+  downloadFormat,
+}) => {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
+        {onDownload && <DownloadButton onClick={onDownload} format={downloadFormat || 'PDF'} />}
+      </div>
+
       {sections?.map((section, index) => (
         <div key={index} className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-2xl font-bold mb-4 text-gray-800">{section.title}</h2>
@@ -59,5 +73,3 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ sections }) => {
     </div>
   )
 }
-
-export default DocumentViewer
