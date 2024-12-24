@@ -2,10 +2,10 @@ export enum AssetGenerationStatus {
   NOT_STARTED = 'NOT_STARTED',
   GENERATING_ASSETS = 'GENERATING_ASSETS',
   COMPLETED = 'COMPLETED',
-  FAILED = 'FAILED'
+  FAILED = 'FAILED',
 }
 
 export interface GenerationProgress {
-  status: AssetGenerationStatus;
-  error?: string;
-} 
+  status: AssetGenerationStatus
+  error?: string
+}

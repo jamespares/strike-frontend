@@ -19,8 +19,8 @@ export async function POST(request: Request) {
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/payment`,
       metadata: {
         userId,
-        userEmail: email
-      }
+        userEmail: email,
+      },
     })
 
     return NextResponse.json({ sessionId: session.id })

@@ -8,7 +8,10 @@ export async function GET(request: Request) {
     const supabase = createRouteHandlerClient({ cookies })
 
     // Check authentication
-    const { data: { session }, error: authError } = await supabase.auth.getSession()
+    const {
+      data: { session },
+      error: authError,
+    } = await supabase.auth.getSession()
     if (authError || !session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -37,4 +40,4 @@ export async function GET(request: Request) {
       { status: 500 }
     )
   }
-} 
+}

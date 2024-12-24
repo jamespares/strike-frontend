@@ -1,12 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useUser } from '@/context/UserContext'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowDownTrayIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline'
-import { supabase } from '@/lib/clients/supabaseClient'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { SurveyQuestion } from '@/data/surveyQuestions'
+import { Session, User } from '@supabase/supabase-js'
 
 interface Asset {
   id: string
@@ -32,8 +32,10 @@ interface SurveyResponse {
 }
 
 export default function DashboardPage() {
-  const { user, session } = useUser()
   const router = useRouter()
+  const [session, setSession] = useState<Session | null>(null)
+  const [user, setUser] = useState<User | null>(null)
+  const supabase = createClientComponentClient()
   const [isInitializing, setIsInitializing] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({})
@@ -42,39 +44,52 @@ export default function DashboardPage() {
   const [surveyResponses, setSurveyResponses] = useState<SurveyResponse | null>(null)
   const [surveyQuestions, setSurveyQuestions] = useState<SurveyQuestion[] | null>(null)
 
+  useEffect(() => {
+    const getSession = async () => {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession()
+      setSession(currentSession)
+      setUser(currentSession?.user ?? null)
+    }
+
+    getSession()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [supabase.auth])
+
   const assets: Asset[] = [
-    {
-      id: 'idea-evaluation',
-      title: 'Idea Evaluation',
-      description: 'Analysis of your business idea ',
-      type: 'document',
-      path: '/idea-evaluation',
-      lastUpdated: new Date().toISOString()
-    },
     {
       id: 'business-plan',
       title: 'Business Plan',
-      description: 'Detailed business strategy',
+      description: 'Comprehensive business strategy with revenue projections',
       type: 'document',
       path: '/business-plan',
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     },
     {
-      id: 'pitch-deck',
-      title: 'Pitch Deck',
-      description: 'Presentation to show off your idea',
-      type: 'presentation',
-      path: '/pitch-deck',
-      lastUpdated: new Date().toISOString()
-    }
+      id: 'roadmap',
+      title: 'Launch Roadmap',
+      description: 'Step-by-step guide to launching your business',
+      type: 'document',
+      path: '/roadmap',
+      lastUpdated: new Date().toISOString(),
+    },
   ]
 
   useEffect(() => {
     // Check which assets have been generated
     const checkGeneratedAssets = async () => {
-      const assetIds = ['idea-evaluation', 'business-plan', 'pitch-deck']
+      const assetIds = ['business-plan', 'roadmap']
       const states: Record<string, boolean> = {}
-      
+
       for (const id of assetIds) {
         try {
           const response = await fetch(`/api/${id}/latest`, { method: 'HEAD' })
@@ -83,7 +98,7 @@ export default function DashboardPage() {
           states[id] = false
         }
       }
-      
+
       setGeneratedAssets(states)
     }
 
@@ -99,8 +114,8 @@ export default function DashboardPage() {
         return
       }
       console.log(`Checking status for ${assetId} with response ID ${surveyResponses.id}`)
-      const response = await fetch(`/api/${assetId}/latest?responseId=${surveyResponses.id}`, { 
-        method: 'HEAD' 
+      const response = await fetch(`/api/${assetId}/latest?responseId=${surveyResponses.id}`, {
+        method: 'HEAD',
       })
       setGeneratedAssets(prev => ({ ...prev, [assetId]: response.ok }))
     } catch (error) {
@@ -125,10 +140,10 @@ export default function DashboardPage() {
     // Fetch survey responses and questions when session is available
     const fetchSurveyData = async () => {
       if (!session?.user?.email) return
-      
+
       try {
         console.log('Fetching survey data for user:', session.user.email)
-        
+
         // Fetch latest survey response
         const { data: responses, error: responsesError } = await supabase
           .from('survey_responses')
@@ -141,19 +156,19 @@ export default function DashboardPage() {
           console.error('Error fetching survey responses:', responsesError)
           throw responsesError
         }
-        
+
         console.log('Latest survey response:', responses)
         setSurveyResponses(responses)
 
         // Check for assets generated from this latest response
         if (responses) {
           const states: Record<string, boolean> = {}
-          const allAssets = ['idea-evaluation', 'business-plan', 'pitch-deck']
-          
+          const allAssets = ['business-plan', 'roadmap']
+
           for (const assetId of allAssets) {
             try {
-              const response = await fetch(`/api/${assetId}/latest?responseId=${responses.id}`, { 
-                method: 'HEAD' 
+              const response = await fetch(`/api/${assetId}/latest?responseId=${responses.id}`, {
+                method: 'HEAD',
               })
               states[assetId] = response.ok
             } catch (error) {
@@ -182,15 +197,15 @@ export default function DashboardPage() {
         setGeneratedAssets({})
         return
       }
-      
+
       console.log('Checking assets for survey response:', surveyResponses.id)
-      const allAssets = ['idea-evaluation', 'business-plan', 'pitch-deck']
+      const allAssets = ['business-plan', 'roadmap']
       const states: Record<string, boolean> = {}
-      
+
       for (const assetId of allAssets) {
         try {
-          const response = await fetch(`/api/${assetId}/latest?responseId=${surveyResponses.id}`, { 
-            method: 'HEAD' 
+          const response = await fetch(`/api/${assetId}/latest?responseId=${surveyResponses.id}`, {
+            method: 'HEAD',
           })
           states[assetId] = response.ok
           console.log(`Asset ${assetId} status:`, response.ok)
@@ -199,7 +214,7 @@ export default function DashboardPage() {
           states[assetId] = false
         }
       }
-      
+
       setGeneratedAssets(states)
     }
 
@@ -220,28 +235,21 @@ export default function DashboardPage() {
 
   const aiTools: Asset[] = [
     {
-      id: 'idea-evaluation',
-      title: 'AI Idea Evaluation',
-      description: 'Get a comprehensive analysis of your business idea using our AI assistant',
-      type: 'document',
-      path: '/idea-evaluation',
-      lastUpdated: new Date().toISOString()
-    },
-    {
       id: 'business-plan',
-      title: 'AI Business Plan Generator',
-      description: 'Generate a detailed business plan and strategy with AI assistance',
+      title: 'Business Plan Generator',
+      description:
+        'Generate a comprehensive business plan with revenue projections and marketing strategy',
       type: 'document',
       path: '/business-plan',
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     },
     {
-      id: 'pitch-deck',
-      title: 'AI Pitch Deck Creator',
-      description: 'Create a professional investor presentation with AI-powered insights',
-      type: 'presentation',
-      path: '/pitch-deck',
-      lastUpdated: new Date().toISOString()
+      id: 'roadmap',
+      title: 'Launch Roadmap',
+      description: 'Get a detailed step-by-step guide to launching your business',
+      type: 'document',
+      path: '/roadmap',
+      lastUpdated: new Date().toISOString(),
     },
   ]
 
@@ -288,7 +296,7 @@ export default function DashboardPage() {
       setGeneratedAssets({})
       setLoadingStates({})
       setSurveyResponses(null)
-      
+
       setShowModal(false)
       router.push('/survey/1')
     } catch (error) {
@@ -311,48 +319,50 @@ export default function DashboardPage() {
     }
 
     setIsGeneratingAll(true)
-    const allAssets = ['idea-evaluation', 'business-plan', 'pitch-deck']
+    const allAssets = ['business-plan', 'roadmap']
     const newLoadingStates = { ...loadingStates }
-    allAssets.forEach(id => newLoadingStates[id] = true)
+    allAssets.forEach(id => (newLoadingStates[id] = true))
     setLoadingStates(newLoadingStates)
 
     try {
-      await Promise.all(allAssets.map(async (assetId) => {
-        try {
-          console.log(`Making request to /api/${assetId}/generate`)
-          const response = await fetch(`/api/${assetId}/generate`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              responses: surveyResponses,
-              questions: surveyQuestions,
-              responseId: surveyResponses.id // Include the response ID
+      await Promise.all(
+        allAssets.map(async assetId => {
+          try {
+            console.log(`Making request to /api/${assetId}/generate`)
+            const response = await fetch(`/api/${assetId}/generate`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                responses: surveyResponses,
+                questions: surveyQuestions,
+                responseId: surveyResponses.id,
+              }),
             })
-          })
-          
-          if (!response.ok) {
-            const errorData = await response.json()
-            console.error(`Generation failed for ${assetId}:`, errorData)
-            throw new Error(errorData.error || 'Generation failed')
+
+            if (!response.ok) {
+              const errorData = await response.json()
+              console.error(`Generation failed for ${assetId}:`, errorData)
+              throw new Error(errorData.error || 'Generation failed')
+            }
+
+            const result = await response.json()
+            console.log(`Generation successful for ${assetId}:`, result)
+
+            await checkAssetStatus(assetId)
+          } catch (error) {
+            console.error(`Error generating ${assetId}:`, error)
+            alert(`Failed to generate ${assetId}. Please try again.`)
           }
-          
-          const result = await response.json()
-          console.log(`Generation successful for ${assetId}:`, result)
-          
-          await checkAssetStatus(assetId)
-        } catch (error) {
-          console.error(`Error generating ${assetId}:`, error)
-          alert(`Failed to generate ${assetId}. Please try again.`)
-        }
-      }))
+        })
+      )
     } catch (error) {
       console.error('Error in parallel generation:', error)
     } finally {
       setIsGeneratingAll(false)
       const resetLoadingStates = { ...loadingStates }
-      allAssets.forEach(id => resetLoadingStates[id] = false)
+      allAssets.forEach(id => (resetLoadingStates[id] = false))
       setLoadingStates(resetLoadingStates)
     }
   }
@@ -376,7 +386,7 @@ export default function DashboardPage() {
     }
 
     setLoadingStates(prev => ({ ...prev, [assetId]: true }))
-    
+
     try {
       console.log(`Making request to /api/${assetId}/generate`)
       const response = await fetch(`/api/${assetId}/generate`, {
@@ -387,19 +397,19 @@ export default function DashboardPage() {
         body: JSON.stringify({
           responses: surveyResponses,
           questions: surveyQuestions,
-          responseId: surveyResponses.id // Include the response ID
-        })
+          responseId: surveyResponses.id, // Include the response ID
+        }),
       })
-      
+
       if (!response.ok) {
         const errorData = await response.json()
         console.error(`Generation failed:`, errorData)
         throw new Error(errorData.error || 'Generation failed')
       }
-      
+
       const result = await response.json()
       console.log('Generation successful:', result)
-      
+
       await checkAssetStatus(assetId)
     } catch (error) {
       console.error(`Error generating ${assetId}:`, error)
@@ -426,15 +436,15 @@ export default function DashboardPage() {
                 </div>
                 <span className="text-2xl font-bold text-gray-900 relative inline-block ml-3">
                   launchbooster.io
-                  <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
-                                transform -rotate-1 translate-y-1"></div>
+                  <div
+                    className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
+                                transform -rotate-1 translate-y-1"
+                  ></div>
                 </span>
               </Link>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-500">
-                {user?.email}
-              </span>
+              <span className="text-sm text-gray-500">{user?.email}</span>
             </div>
           </div>
         </div>
@@ -453,7 +463,12 @@ export default function DashboardPage() {
                        transition duration-200 ease-in-out shadow-sm flex items-center justify-center"
             >
               <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
               </svg>
               Generate New Toolkit
             </button>
@@ -465,12 +480,20 @@ export default function DashboardPage() {
                 <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
               </h2>
               <nav className="space-y-1">
-                <a href="https://cursor.sh" target="_blank" rel="noopener noreferrer"
-                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                <a
+                  href="https://cursor.sh"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block py-1 text-sm text-emerald-600 hover:text-emerald-500"
+                >
                   Cursor AI <span className="text-xs text-gray-500">- AI code editor</span>
                 </a>
-                <a href="https://v0.dev" target="_blank" rel="noopener noreferrer"
-                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                <a
+                  href="https://v0.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block py-1 text-sm text-emerald-600 hover:text-emerald-500"
+                >
                   V0.dev <span className="text-xs text-gray-500">- AI UI generation</span>
                 </a>
               </nav>
@@ -483,12 +506,20 @@ export default function DashboardPage() {
                 <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
               </h2>
               <nav className="space-y-1">
-                <a href="https://lovable.dev" target="_blank" rel="noopener noreferrer"
-                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                <a
+                  href="https://lovable.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block py-1 text-sm text-emerald-600 hover:text-emerald-500"
+                >
                   lovable.dev <span className="text-xs text-gray-500">- Product builder</span>
                 </a>
-                <a href="https://www.producthunt.com" target="_blank" rel="noopener noreferrer"
-                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                <a
+                  href="https://www.producthunt.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block py-1 text-sm text-emerald-600 hover:text-emerald-500"
+                >
                   Product Hunt <span className="text-xs text-gray-500">- Launch platform</span>
                 </a>
               </nav>
@@ -501,16 +532,28 @@ export default function DashboardPage() {
                 <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
               </h2>
               <nav className="space-y-1">
-                <a href="https://github.com/ixartz/SaaS-Boilerplate" target="_blank" rel="noopener noreferrer"
-                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                <a
+                  href="https://github.com/ixartz/SaaS-Boilerplate"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block py-1 text-sm text-emerald-600 hover:text-emerald-500"
+                >
                   SaaS Boilerplate <span className="text-xs text-gray-500">- Quick setup</span>
                 </a>
-                <a href="https://github.com/ixartz/Next-JS-Landing-Page-Starter-Template" target="_blank" rel="noopener noreferrer"
-                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                <a
+                  href="https://github.com/ixartz/Next-JS-Landing-Page-Starter-Template"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block py-1 text-sm text-emerald-600 hover:text-emerald-500"
+                >
                   Landing Page <span className="text-xs text-gray-500">- Next.js starter</span>
                 </a>
-                <a href="https://github.com/ixartz/React-Native-Boilerplate" target="_blank" rel="noopener noreferrer"
-                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                <a
+                  href="https://github.com/ixartz/React-Native-Boilerplate"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block py-1 text-sm text-emerald-600 hover:text-emerald-500"
+                >
                   React Native <span className="text-xs text-gray-500">- Mobile starter</span>
                 </a>
               </nav>
@@ -523,25 +566,47 @@ export default function DashboardPage() {
                 <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
               </h2>
               <nav className="space-y-1">
-                <a href="https://marclou.beehiiv.com/p/how-to-get-your-1st-customer-for-a-micro-saas" target="_blank" rel="noopener noreferrer"
-                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                <a
+                  href="https://marclou.beehiiv.com/p/how-to-get-your-1st-customer-for-a-micro-saas"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block py-1 text-sm text-emerald-600 hover:text-emerald-500"
+                >
                   First Customer <span className="text-xs text-gray-500">- MicroSaaS guide</span>
                 </a>
-                <a href="https://www.youtube.com/watch?v=QRZ_l7cVzzU" target="_blank" rel="noopener noreferrer"
-                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                <a
+                  href="https://www.youtube.com/watch?v=QRZ_l7cVzzU"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block py-1 text-sm text-emerald-600 hover:text-emerald-500"
+                >
                   Building MVP <span className="text-xs text-gray-500">- Video guide</span>
                 </a>
-                <a href="https://www.youtube.com/watch?v=Th8JoIan4dg" target="_blank" rel="noopener noreferrer"
-                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
+                <a
+                  href="https://www.youtube.com/watch?v=Th8JoIan4dg"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block py-1 text-sm text-emerald-600 hover:text-emerald-500"
+                >
                   Idea Evaluation <span className="text-xs text-gray-500">- Video guide</span>
                 </a>
-                <a href="https://www.amazon.co.uk/How-Big-Things-Get-Done/dp/1035018934" target="_blank" rel="noopener noreferrer"
-                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
-                  How Big Things Get Done <span className="text-xs text-gray-500">- Project management handbook</span>
+                <a
+                  href="https://www.amazon.co.uk/How-Big-Things-Get-Done/dp/1035018934"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block py-1 text-sm text-emerald-600 hover:text-emerald-500"
+                >
+                  How Big Things Get Done{' '}
+                  <span className="text-xs text-gray-500">- Project management handbook</span>
                 </a>
-                <a href="https://readmake.com/" target="_blank" rel="noopener noreferrer"
-                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500">
-                  MAKE <span className="text-xs text-gray-500">- Solo founder's guide by @levelsio</span>
+                <a
+                  href="https://readmake.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block py-1 text-sm text-emerald-600 hover:text-emerald-500"
+                >
+                  MAKE{' '}
+                  <span className="text-xs text-gray-500">- Solo founder's guide by @levelsio</span>
                 </a>
               </nav>
             </div>
@@ -552,8 +617,10 @@ export default function DashboardPage() {
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-gray-900 relative inline-block">
                 Welcome{user?.email ? `, ${user.email.split('@')[0]}` : ''}!
-                <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
-                              transform -rotate-1 translate-y-1"></div>
+                <div
+                  className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
+                              transform -rotate-1 translate-y-1"
+                ></div>
               </h2>
               <p className="mt-3 text-xl text-gray-500">
                 Manage and access all your tools in one place
@@ -566,12 +633,8 @@ export default function DashboardPage() {
               <div className="overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200 bg-white">
                 <div className="px-4 py-5 sm:p-6">
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900">
-                      Generate All
-                    </h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Create all tools in one click
-                    </p>
+                    <h3 className="text-lg font-medium text-gray-900">Generate All</h3>
+                    <p className="mt-1 text-sm text-gray-500">Create all tools in one click</p>
                   </div>
                   <div className="mt-4">
                     {isGeneratingAll ? (
@@ -594,19 +657,15 @@ export default function DashboardPage() {
               </div>
 
               {/* Existing Asset Tiles */}
-              {assets.map((asset) => (
+              {assets.map(asset => (
                 <div
                   key={asset.id}
                   className="overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200 bg-white"
                 >
                   <div className="px-4 py-5 sm:p-6">
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900">
-                        {asset.title}
-                      </h3>
-                      <p className="mt-1 text-sm text-gray-500">
-                        {asset.description}
-                      </p>
+                      <h3 className="text-lg font-medium text-gray-900">{asset.title}</h3>
+                      <p className="mt-1 text-sm text-gray-500">{asset.description}</p>
                     </div>
                     <div className="mt-4 flex justify-between items-center">
                       {loadingStates[asset.id] ? (
@@ -654,10 +713,13 @@ export default function DashboardPage() {
 
             {/* Coding Course Card */}
             <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg p-6 shadow-sm border border-emerald-100">
-              <h3 className="text-xl font-semibold text-gray-900 mb-2"> Need to code something? Don't know how to do it? No problem! 🚀</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                {' '}
+                Need to code something? Don't know how to do it? No problem! 🚀
+              </h3>
               <p className="text-gray-600 mb-4">
-                Check out Marc Lou's popular course on coding essentials for entrepreneurs.
-                Perfect for founders who want to build their prototype!
+                Check out Marc Lou's popular course on coding essentials for entrepreneurs. Perfect
+                for founders who want to build their prototype!
               </p>
               <a
                 href="https://codefa.st/?via=james"
@@ -681,7 +743,8 @@ export default function DashboardPage() {
           <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Start New Project?</h2>
             <p className="text-gray-600 mb-6">
-              This will clear your current project data and start fresh. Are you sure you want to continue?
+              This will clear your current project data and start fresh. Are you sure you want to
+              continue?
             </p>
             <div className="flex space-x-4">
               <button

@@ -12,7 +12,7 @@ import { cookies } from 'next/headers'
 
 const execAsync = promisify(exec)
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY,
 })
 
 // Generate d2 diagram content using AI
@@ -43,19 +43,23 @@ async function generateD2Content(projectPlan: ProjectPlan) {
         1. Clear phase boxes
         2. Connected milestones
         3. Proper styling for visual hierarchy
-        4. Logical flow between elements`
+        4. Logical flow between elements`,
       },
       {
         role: 'user',
         content: `Create a roadmap diagram using this project plan:
-        ${JSON.stringify({
-          tasks: projectPlan.tasks,
-          timeline: projectPlan.timeline,
-          milestones: projectPlan.timeline.milestones
-        }, null, 2)}`
-      }
+        ${JSON.stringify(
+          {
+            tasks: projectPlan.tasks,
+            timeline: projectPlan.timeline,
+            milestones: projectPlan.timeline.milestones,
+          },
+          null,
+          2
+        )}`,
+      },
     ],
-    temperature: 0.7
+    temperature: 0.7,
   })
 
   return response.choices[0].message.content || ''
@@ -68,12 +72,15 @@ export async function POST(request: NextRequest) {
     const supabase = createRouteHandlerClient({ cookies })
 
     // Check authentication
-    const { data: { session }, error: authError } = await supabase.auth.getSession()
+    const {
+      data: { session },
+      error: authError,
+    } = await supabase.auth.getSession()
     if (authError || !session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { responses, questions } = await request.json() as {
+    const { responses, questions } = (await request.json()) as {
       responses: SurveyResponse
       questions: SurveyQuestion[]
     }
@@ -93,17 +100,14 @@ export async function POST(request: NextRequest) {
         asset_type: 'roadmap',
         title: 'Project Roadmap',
         status: 'generating',
-        content: null
+        content: null,
       })
       .select()
       .single()
 
     if (assetError) {
       console.error('Error creating asset record:', assetError)
-      return NextResponse.json(
-        { error: 'Failed to initialize asset generation' },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: 'Failed to initialize asset generation' }, { status: 500 })
     }
 
     // Generate D2 diagram content using OpenAI
@@ -130,7 +134,7 @@ export async function POST(request: NextRequest) {
     const completion = await openai.chat.completions.create({
       model: 'gpt-4',
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7
+      temperature: 0.7,
     })
 
     const d2Content = completion.choices[0].message.content
@@ -165,7 +169,7 @@ export async function POST(request: NextRequest) {
     // Clean up temp files
     await Promise.all([
       unlink(inputPath).catch(err => console.error('Failed to delete input file:', err)),
-      unlink(outputPath).catch(err => console.error('Failed to delete output file:', err))
+      unlink(outputPath).catch(err => console.error('Failed to delete output file:', err)),
     ])
 
     // Convert PDF to base64 for storage
@@ -177,9 +181,9 @@ export async function POST(request: NextRequest) {
       .update({
         content: {
           pdfBase64,
-          diagramData: d2Content
+          diagramData: d2Content,
         },
-        status: 'completed'
+        status: 'completed',
       })
       .eq('id', asset.id)
 
@@ -191,8 +195,8 @@ export async function POST(request: NextRequest) {
     return new NextResponse(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename="roadmap.pdf"'
-      }
+        'Content-Disposition': 'attachment; filename="roadmap.pdf"',
+      },
     })
   } catch (error: any) {
     console.error('Error generating roadmap:', error)

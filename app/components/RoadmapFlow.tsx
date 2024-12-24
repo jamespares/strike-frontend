@@ -1,12 +1,5 @@
 import { useCallback } from 'react'
-import ReactFlow, {
-  Node,
-  Edge,
-  Controls,
-  Background,
-  ConnectionMode,
-  Panel
-} from 'reactflow'
+import ReactFlow, { Node, Edge, Controls, Background, ConnectionMode, Panel } from 'reactflow'
 import 'reactflow/dist/style.css'
 
 interface RoadmapFlowProps {
@@ -16,12 +9,7 @@ interface RoadmapFlowProps {
   isGeneratingPDF: boolean
 }
 
-export function RoadmapFlow({ 
-  nodes, 
-  edges, 
-  onDownloadPDF,
-  isGeneratingPDF 
-}: RoadmapFlowProps) {
+export function RoadmapFlow({ nodes, edges, onDownloadPDF, isGeneratingPDF }: RoadmapFlowProps) {
   const onInit = useCallback(() => {
     // Optional: Add any initialization logic
   }, [])
@@ -51,4 +39,4 @@ export function RoadmapFlow({
       </button>
     </div>
   )
-} 
+}

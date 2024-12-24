@@ -6,4 +6,4 @@ export const supabase = createClientComponentClient<Database>()
 
 export const createClient = () => {
   return supabase
-} 
+}

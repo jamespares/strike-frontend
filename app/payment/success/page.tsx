@@ -2,20 +2,40 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { useUser } from '@/context/UserContext'
-import { supabase } from '@/lib/clients/supabaseClient'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { Session } from '@supabase/supabase-js'
 
 export default function PaymentSuccess() {
   const router = useRouter()
-  const { session } = useUser()
+  const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [statusLog, setStatusLog] = useState<string[]>([])
+  const supabase = createClientComponentClient()
 
   // Add log function
   const addLog = (message: string) => {
     console.log(`[Payment Success] ${message}`)
     setStatusLog(prev => [...prev, `${new Date().toISOString()}: ${message}`])
   }
+
+  useEffect(() => {
+    const getSession = async () => {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession()
+      setSession(currentSession)
+    }
+
+    getSession()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [supabase.auth])
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -28,7 +48,7 @@ export default function PaymentSuccess() {
     const checkStatus = async () => {
       try {
         addLog('Checking payment status...')
-        
+
         // Check payment status
         const { data: userData, error: userError } = await supabase
           .from('users')
@@ -80,18 +100,18 @@ export default function PaymentSuccess() {
               <div className="inline-flex items-center justify-center w-16 h-16 mb-6 bg-emerald-100 rounded-full">
                 <div className="w-8 h-8 text-emerald-500">
                   <svg className="animate-spin" viewBox="0 0 24 24">
-                    <circle 
-                      className="opacity-25" 
-                      cx="12" 
-                      cy="12" 
-                      r="10" 
-                      stroke="currentColor" 
-                      strokeWidth="4" 
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
                       fill="none"
                     />
-                    <path 
-                      className="opacity-75" 
-                      fill="currentColor" 
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     />
                   </svg>
@@ -136,4 +156,4 @@ export default function PaymentSuccess() {
       </div>
     </div>
   )
-} 
+}

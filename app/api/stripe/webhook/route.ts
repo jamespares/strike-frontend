@@ -5,11 +5,11 @@ import { SurveyData } from '@/lib/types/survey'
 import OpenAI from 'openai'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2022-11-15',
+  apiVersion: '2024-11-20.acacia',
 })
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY,
 })
 
 const supabaseAdmin = createClient(
@@ -18,8 +18,8 @@ const supabaseAdmin = createClient(
   {
     auth: {
       autoRefreshToken: false,
-      persistSession: false
-    }
+      persistSession: false,
+    },
   }
 )
 
@@ -30,7 +30,7 @@ async function delay(ms: number) {
 async function attemptGeneration(surveyData: SurveyData, attempt: number = 1): Promise<any> {
   console.log('Attempting project plan generation, attempt:', attempt)
   const today = new Date().toISOString().split('T')[0]
-  
+
   try {
     const response = await openai.chat.completions.create({
       model: 'gpt-4',
@@ -102,7 +102,7 @@ async function attemptGeneration(surveyData: SurveyData, attempt: number = 1): P
              - Include team scaling guidelines
              - Recommend automation opportunities
              - Consider geographical expansion
-             - Include infrastructure scaling points`
+             - Include infrastructure scaling points`,
         },
         {
           role: 'user',
@@ -162,12 +162,12 @@ Create a comprehensive plan that includes:
 - Allocate contingency based on risk assessment
 - Focus on tools that maximize ROI for solopreneurs
 
-Use real market data and industry benchmarks to create realistic projections.`
-        }
+Use real market data and industry benchmarks to create realistic projections.`,
+        },
       ],
       temperature: 0.7,
       max_tokens: 4000,
-      response_format: { type: "json_object" }
+      response_format: { type: 'json_object' },
     })
 
     console.log('Successfully generated project plan')
@@ -199,7 +199,7 @@ export async function POST(request: Request) {
       const session = event.data.object as Stripe.Checkout.Session
       console.log('Session data:', session)
       const userId = session.metadata?.userId
-      
+
       if (!userId) {
         console.error('No userId in metadata:', session.metadata)
         throw new Error('User ID not found in session metadata')
@@ -231,26 +231,21 @@ export async function POST(request: Request) {
       console.log('Generating project plan...')
       const projectPlan = await attemptGeneration(surveyData as SurveyData)
       console.log('Project plan generated')
-      
+
       console.log('Deleting existing plan...')
-      await supabaseAdmin
-        .from('project_plans')
-        .delete()
-        .eq('user_id', userId)
+      await supabaseAdmin.from('project_plans').delete().eq('user_id', userId)
 
       console.log('Inserting new plan...')
-      const { error: planError } = await supabaseAdmin
-        .from('project_plans')
-        .insert({
-          user_id: userId,
-          plan: projectPlan,
-        })
+      const { error: planError } = await supabaseAdmin.from('project_plans').insert({
+        user_id: userId,
+        plan: projectPlan,
+      })
 
       if (planError) {
         console.error('Plan insertion failed:', planError)
         throw planError
       }
-      
+
       console.log('Webhook processing completed successfully')
     }
 
@@ -261,11 +256,8 @@ export async function POST(request: Request) {
       message: error.message,
       code: error.code,
       type: error.type,
-      stack: error.stack
+      stack: error.stack,
     })
-    return NextResponse.json(
-      { error: `Webhook Error: ${error.message}` },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: `Webhook Error: ${error.message}` }, { status: 400 })
   }
 }

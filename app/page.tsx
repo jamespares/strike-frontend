@@ -1,9 +1,10 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useUser } from '@/context/UserContext'
 import Image from 'next/image'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useEffect, useState } from 'react'
+import { Session } from '@supabase/supabase-js'
 
 const SquigglyUnderline = () => (
   <svg
@@ -20,12 +21,31 @@ const SquigglyUnderline = () => (
       fill="none"
     />
   </svg>
-);
+)
 
 export default function Home() {
   const router = useRouter()
-  const { session } = useUser()
+  const [session, setSession] = useState<Session | null>(null)
   const supabase = createClientComponentClient()
+
+  useEffect(() => {
+    const getSession = async () => {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession()
+      setSession(currentSession)
+    }
+
+    getSession()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [supabase.auth])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -57,15 +77,32 @@ export default function Home() {
               </div>
               <span className="text-2xl font-bold text-gray-900 relative inline-block ml-3">
                 launchbooster.io
-                <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
-                              transform -rotate-1 translate-y-1"></div>
+                <div
+                  className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
+                              transform -rotate-1 translate-y-1"
+                ></div>
               </span>
             </div>
             <div className="hidden md:block">
               <div className="ml-10 flex items-center space-x-4">
-                <a href="#features" className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">Features</a>
-                <a href="#demo" className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">Demo</a>
-                <a href="#pricing" className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium">Pricing</a>
+                <a
+                  href="#features"
+                  className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+                >
+                  Features
+                </a>
+                <a
+                  href="#demo"
+                  className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+                >
+                  Demo
+                </a>
+                <a
+                  href="#pricing"
+                  className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+                >
+                  Pricing
+                </a>
                 {session ? (
                   <>
                     <button
@@ -109,18 +146,25 @@ export default function Home() {
               <h1 className="text-4xl tracking-tight font-extrabold sm:text-5xl xl:text-6xl">
                 <span className="block text-gray-900 relative inline-block">
                   Got a business idea?
-                  <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
-                                transform -rotate-1 translate-y-1"></div>
+                  <div
+                    className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
+                                transform -rotate-1 translate-y-1"
+                  ></div>
                 </span>
-                <span className="block text-emerald-500 mt-2">Not sure how to launch?</span>
+                <span className="block text-emerald-500 mt-2">Not sure how to start?</span>
                 <span className="block text-gray-900 relative inline-block mt-2">
                   You're in the right place.
-                  <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
-                                transform -rotate-1 translate-y-1"></div>
+                  <div
+                    className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
+                                transform -rotate-1 translate-y-1"
+                  ></div>
                 </span>
               </h1>
               <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-xl lg:text-lg xl:text-xl">
-                Our AI model analyses your concept and generates all the documents you need to succeed: evaluation report, strategy plan, roadmap, task breakdown, cost tracker, and custom investor pitch deck. All populaated and fully tailored to your use case.
+                Tell us about your idea and we'll build you a bespoke business plan including
+                revenue projections and a custom marketing strategy. All based on proven wisdom from
+                leading VCs, start-up accelerators and the best indie hackers. Launch your idea
+                today!
               </p>
               <p className="mt-2 text-sm text-emerald-600 font-medium">
                 Average completion time: 10 minutes
@@ -132,17 +176,14 @@ export default function Home() {
                            hover:bg-emerald-600 transform hover:scale-105 active:scale-95
                            transition duration-200 ease-in-out shadow-sm"
                 >
-                  {session ? 'Generate New Toolkit' : 'Activate Founder Mode'}
+                  {session ? 'Generate New Toolkit' : 'Get Started'}
                 </button>
               </div>
             </div>
             <div className="mt-12 relative sm:max-w-lg sm:mx-auto lg:mt-0 lg:max-w-none lg:mx-0 lg:col-span-6 lg:flex lg:items-center">
               <div className="relative mx-auto w-full rounded-lg shadow-lg lg:max-w-md">
                 <div className="relative block w-full bg-white rounded-lg overflow-hidden border border-gray-200">
-                  <video
-                    className="w-full h-full object-cover"
-                    controls
-                  >
+                  <video className="w-full h-full object-cover" controls>
                     <source src="/videos/demo_draft.mp4" type="video/mp4" />
                     Your browser does not support the video tag.
                   </video>
@@ -159,25 +200,27 @@ export default function Home() {
           <div className="text-center">
             <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl relative inline-block">
               Everything You Need to Succeed
-              <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
-                            transform -rotate-1 translate-y-1"></div>
+              <div
+                className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
+                            transform -rotate-1 translate-y-1"
+              ></div>
             </h2>
             <p className="mt-4 text-xl text-gray-500">
-              Using proven frameworks from leading accelerators and VCs:
+              Using proven frameworks from top accelerators, VCs and indie hackers:
             </p>
             <div className="mt-6 flex justify-center items-center space-x-16">
               <div className="h-14 flex items-center transition-all duration-200">
-                <img 
-                  src="/y-combinator-logo.png" 
-                  alt="Y Combinator" 
-                  className="h-full w-auto object-contain" 
+                <img
+                  src="/y-combinator-logo.png"
+                  alt="Y Combinator"
+                  className="h-full w-auto object-contain"
                 />
               </div>
               <div className="h-14 w-32 flex items-center transition-all duration-200 overflow-hidden">
-                <img 
-                  src="/sequoia-logo.png" 
-                  alt="Sequoia Capital" 
-                  className="h-[80%] w-auto object-contain -ml-1" 
+                <img
+                  src="/sequoia-logo.png"
+                  alt="Sequoia Capital"
+                  className="h-[80%] w-auto object-contain -ml-1"
                 />
               </div>
             </div>
@@ -186,27 +229,27 @@ export default function Home() {
           <div className="mt-20 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
             {[
               {
-                icon: "🎯",
-                title: "Idea Evaluation",
-                description: "Get your business idea evaluated using Y Combinator's proven frameworks"
+                icon: '📊',
+                title: 'Revenue Projections',
+                description:
+                  'Get detailed financial forecasts based on market research and industry benchmarks',
               },
               {
-                icon: "📋",
-                title: "Launch Strategy",
-                description: "Receive a comprehensive business launch strategy document"
+                icon: '📈',
+                title: 'Marketing Strategy',
+                description:
+                  'Custom marketing plan with channel recommendations and growth tactics',
               },
               {
-                icon: "🗺️",
-                title: "Visual Roadmap",
-                description: "Clear visual diagram showing your path from idea to launch"
+                icon: '📋',
+                title: 'Business Plan',
+                description: 'Comprehensive business strategy document with execution roadmap',
               },
-              {
-                icon: "🎭",
-                title: "Pitch Deck",
-                description: "Professional pitch deck ready to present to investors"
-              }
             ].map((feature, index) => (
-              <div key={index} className="relative p-6 bg-white rounded-lg shadow-sm border border-gray-200">
+              <div
+                key={index}
+                className="relative p-6 bg-white rounded-lg shadow-sm border border-gray-200"
+              >
                 <div className="text-3xl mb-4">{feature.icon}</div>
                 <h3 className="text-xl font-semibold text-gray-900 relative inline-block">
                   {feature.title}
@@ -228,25 +271,27 @@ export default function Home() {
               <SquigglyUnderline />
             </h2>
             <p className="mt-4 text-xl text-gray-500">
-              Watch how launchbooster helps entrepreneurs turn their ideas into successful businesses
+              Watch how launchbooster helps entrepreneurs turn their ideas into successful
+              businesses
             </p>
           </div>
 
           {/* Video Container */}
           <div className="max-w-3xl mx-auto relative">
             <div className="aspect-video bg-gray-50 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-              <video
-                className="w-full h-full object-cover"
-                controls
-              >
+              <video className="w-full h-full object-cover" controls>
                 <source src="/videos/demo_draft.mp4" type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
             </div>
-            <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-emerald-50 rounded-full 
-                          opacity-50 z-0"></div>
-            <div className="absolute -top-4 -left-4 w-32 h-32 bg-emerald-50 rounded-full 
-                          opacity-30 z-0"></div>
+            <div
+              className="absolute -bottom-4 -right-4 w-24 h-24 bg-emerald-50 rounded-full 
+                          opacity-50 z-0"
+            ></div>
+            <div
+              className="absolute -top-4 -left-4 w-32 h-32 bg-emerald-50 rounded-full 
+                          opacity-30 z-0"
+            ></div>
           </div>
 
           {/* Call to Action */}
@@ -260,7 +305,12 @@ export default function Home() {
             >
               <span>Get Started</span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 8l4 4m0 0l-4 4m4-4H3"
+                />
               </svg>
             </button>
           </div>
@@ -273,8 +323,10 @@ export default function Home() {
           <div className="text-center">
             <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl relative inline-block">
               Simple, One-Time Pricing
-              <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
-                            transform -rotate-1 translate-y-1"></div>
+              <div
+                className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
+                            transform -rotate-1 translate-y-1"
+              ></div>
             </h2>
             <p className="mt-4 text-xl text-gray-500">
               Pay only for what you need, when you need it
@@ -288,31 +340,29 @@ export default function Home() {
                   Business Launch Toolkit
                   <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
                 </h3>
-                <p className="mt-4 text-gray-500">Instantly generate everything you need to launch your business</p>
+                <p className="mt-4 text-gray-500">
+                  Instantly generate everything you need to launch your business
+                </p>
                 <ul className="mt-8 space-y-4">
                   <li className="flex items-center">
                     <span className="text-emerald-500 mr-2">✓</span>
-                    <span className="text-gray-500">Business Idea Evaluation Report (PDF)</span>
+                    <span className="text-gray-500">Comprehensive Business Plan (PDF)</span>
                   </li>
                   <li className="flex items-center">
                     <span className="text-emerald-500 mr-2">✓</span>
-                    <span className="text-gray-500">Launch Strategy Document (PDF)</span>
+                    <span className="text-gray-500">5-Year Revenue Projections</span>
                   </li>
                   <li className="flex items-center">
                     <span className="text-emerald-500 mr-2">✓</span>
-                    <span className="text-gray-500">Visual Roadmap Diagram (PDF)</span>
+                    <span className="text-gray-500">Custom Marketing Strategy</span>
                   </li>
                   <li className="flex items-center">
                     <span className="text-emerald-500 mr-2">✓</span>
-                    <span className="text-gray-500">Task Management Spreadsheet</span>
+                    <span className="text-gray-500">Market Analysis & Competitor Research</span>
                   </li>
                   <li className="flex items-center">
                     <span className="text-emerald-500 mr-2">✓</span>
-                    <span className="text-gray-500">Cost Tracking Spreadsheet</span>
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-emerald-500 mr-2">✓</span>
-                    <span className="text-gray-500">Investor Pitch Deck (PDF & PowerPoint)</span>
+                    <span className="text-gray-500">Growth & Scaling Recommendations</span>
                   </li>
                 </ul>
               </div>
@@ -344,39 +394,42 @@ export default function Home() {
           <div className="text-center">
             <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl relative inline-block">
               How It Works
-              <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
-                            transform -rotate-1 translate-y-1"></div>
+              <div
+                className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
+                            transform -rotate-1 translate-y-1"
+              ></div>
             </h2>
           </div>
 
-          <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-4">
+          <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-3">
             <div className="text-center">
               <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl text-emerald-600">1</span>
               </div>
-              <h3 className="text-lg font-semibold mb-2">Answer Questions</h3>
-              <p className="text-gray-500">Complete our Y Combinator-inspired questionnaire about your business idea</p>
+              <h3 className="text-lg font-semibold mb-2">Tell Us About Your Idea</h3>
+              <p className="text-gray-500">
+                Share your vision, target market, and business goals through our guided
+                questionnaire
+              </p>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl text-emerald-600">2</span>
               </div>
-              <h3 className="text-lg font-semibold mb-2">AI Analysis</h3>
-              <p className="text-gray-500">Our model evaluates your idea and creates your launch strategy</p>
+              <h3 className="text-lg font-semibold mb-2">Get Your Custom Plan</h3>
+              <p className="text-gray-500">
+                We'll analyze market data and proven frameworks to create your tailored business
+                strategy
+              </p>
             </div>
             <div className="text-center">
               <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl text-emerald-600">3</span>
               </div>
-              <h3 className="text-lg font-semibold mb-2">Generate Assets</h3>
-              <p className="text-gray-500">Get your evaluation, strategy, roadmap, and pitch deck</p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl text-emerald-600">4</span>
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Start Executing</h3>
-              <p className="text-gray-500">Begin executing your launch strategy with your roadmap</p>
+              <h3 className="text-lg font-semibold mb-2">Launch Your Business!</h3>
+              <p className="text-gray-500">
+                Execute your strategy with confidence using your comprehensive business plan
+              </p>
             </div>
           </div>
         </div>
@@ -388,8 +441,10 @@ export default function Home() {
           <div className="text-center">
             <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl relative inline-block">
               Trusted by Founders
-              <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
-                            transform -rotate-1 translate-y-1"></div>
+              <div
+                className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
+                            transform -rotate-1 translate-y-1"
+              ></div>
             </h2>
           </div>
 
@@ -399,30 +454,38 @@ export default function Home() {
                 <div className="h-12 w-12 rounded-full bg-gray-200"></div>
                 <div className="ml-4">
                   <h3 className="text-lg font-semibold">Sarah Chen</h3>
-                  <p className="text-gray-500">Tech Startup Founder</p>
+                  <p className="text-gray-500">E-commerce Founder</p>
                 </div>
               </div>
-              <p className="text-gray-600">"Generated my pitch deck in 45 minutes. Secured a meeting with investors the next week."</p>
+              <p className="text-gray-600">
+                "The revenue projections and marketing strategy were exactly what I needed to get
+                started."
+              </p>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
               <div className="flex items-center mb-4">
                 <div className="h-12 w-12 rounded-full bg-gray-200"></div>
                 <div className="ml-4">
                   <h3 className="text-lg font-semibold">Marcus Rodriguez</h3>
-                  <p className="text-gray-500">E-commerce Founder</p>
+                  <p className="text-gray-500">SaaS Founder</p>
                 </div>
               </div>
-              <p className="text-gray-600">"The financial planning tools helped me understand exactly what I needed to launch."</p>
+              <p className="text-gray-600">
+                "The financial planning helped me understand exactly what I needed to launch and
+                grow."
+              </p>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
               <div className="flex items-center mb-4">
                 <div className="h-12 w-12 rounded-full bg-gray-200"></div>
                 <div className="ml-4">
                   <h3 className="text-lg font-semibold">Lisa Thompson</h3>
-                  <p className="text-gray-500">SaaS Founder</p>
+                  <p className="text-gray-500">D2C Brand Founder</p>
                 </div>
               </div>
-              <p className="text-gray-600">"The roadmap feature saved me months of planning. Clear, actionable steps."</p>
+              <p className="text-gray-600">
+                "Clear, actionable marketing strategy that helped me find my first customers."
+              </p>
             </div>
           </div>
 
@@ -440,33 +503,81 @@ export default function Home() {
             <div>
               <h3 className="text-gray-900 font-semibold mb-4">Product</h3>
               <ul className="space-y-2">
-                <li><a href="#features" className="text-gray-600 hover:text-gray-900">Features</a></li>
-                <li><a href="#pricing" className="text-gray-600 hover:text-gray-900">Pricing</a></li>
-                <li><a href="#demo" className="text-gray-600 hover:text-gray-900">Demo</a></li>
+                <li>
+                  <a href="#features" className="text-gray-600 hover:text-gray-900">
+                    Features
+                  </a>
+                </li>
+                <li>
+                  <a href="#pricing" className="text-gray-600 hover:text-gray-900">
+                    Pricing
+                  </a>
+                </li>
+                <li>
+                  <a href="#demo" className="text-gray-600 hover:text-gray-900">
+                    Demo
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
               <h3 className="text-gray-900 font-semibold mb-4">Company</h3>
               <ul className="space-y-2">
-                <li><a href="#" className="text-gray-600 hover:text-gray-900">About</a></li>
-                <li><a href="#" className="text-gray-600 hover:text-gray-900">Blog</a></li>
-                <li><a href="#" className="text-gray-600 hover:text-gray-900">Careers</a></li>
+                <li>
+                  <a href="#" className="text-gray-600 hover:text-gray-900">
+                    About
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-gray-600 hover:text-gray-900">
+                    Blog
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-gray-600 hover:text-gray-900">
+                    Careers
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
               <h3 className="text-gray-900 font-semibold mb-4">Support</h3>
               <ul className="space-y-2">
-                <li><a href="#" className="text-gray-600 hover:text-gray-900">Help Center</a></li>
-                <li><a href="#" className="text-gray-600 hover:text-gray-900">Documentation</a></li>
-                <li><a href="#" className="text-gray-600 hover:text-gray-900">Contact</a></li>
+                <li>
+                  <a href="#" className="text-gray-600 hover:text-gray-900">
+                    Help Center
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-gray-600 hover:text-gray-900">
+                    Documentation
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-gray-600 hover:text-gray-900">
+                    Contact
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
               <h3 className="text-gray-900 font-semibold mb-4">Legal</h3>
               <ul className="space-y-2">
-                <li><a href="#" className="text-gray-600 hover:text-gray-900">Privacy</a></li>
-                <li><a href="#" className="text-gray-600 hover:text-gray-900">Terms</a></li>
-                <li><a href="#" className="text-gray-600 hover:text-gray-900">Security</a></li>
+                <li>
+                  <a href="#" className="text-gray-600 hover:text-gray-900">
+                    Privacy
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-gray-600 hover:text-gray-900">
+                    Terms
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-gray-600 hover:text-gray-900">
+                    Security
+                  </a>
+                </li>
               </ul>
             </div>
           </div>

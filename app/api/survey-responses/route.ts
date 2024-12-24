@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 import * as yup from 'yup'
 
 const schema = yup.object().shape({
@@ -15,8 +17,8 @@ export async function POST(request: Request) {
     await schema.validate({ userId, input })
     console.log('Validation passed')
 
-    const supabase = authService.getSupabaseClient()
-    
+    const supabase = createRouteHandlerClient({ cookies })
+
     // First check if we can query the table
     const { data: checkTable, error: tableError } = await supabase
       .from('survey_responses')
@@ -25,15 +27,16 @@ export async function POST(request: Request) {
 
     console.log('Table check:', { checkTable, tableError })
 
-    const { data, error } = await supabase
-      .from('survey_responses')
-      .upsert({
+    const { data, error } = await supabase.from('survey_responses').upsert(
+      {
         user_id: userId,
         ...input,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id'
-      })
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'user_id',
+      }
+    )
 
     console.log('Upsert result:', { data, error })
 
@@ -47,4 +50,4 @@ export async function POST(request: Request) {
     console.error('API route error:', error)
     return NextResponse.json({ error: error.message }, { status: 400 })
   }
-} 
+}

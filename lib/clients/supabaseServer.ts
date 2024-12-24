@@ -4,4 +4,4 @@ import { Database } from '@/lib/types/database'
 
 export const createServerClient = () => {
   return createServerComponentClient<Database>({ cookies })
-} 
+}

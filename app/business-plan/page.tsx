@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import DocumentViewer from '@/components/viewers/DocumentViewer'
+import DocumentViewer from '../components/viewers/DocumentViewer'
 
 interface BusinessPlanSection {
   title: string
@@ -21,7 +21,6 @@ export default function BusinessPlanPage() {
   const [businessPlan, setBusinessPlan] = useState<BusinessPlan | null>(null)
 
   useEffect(() => {
-    // Fetch the business plan data when the component mounts
     const fetchBusinessPlan = async () => {
       try {
         const response = await fetch('/api/business-plan/latest')
@@ -62,19 +61,16 @@ export default function BusinessPlanPage() {
     )
   }
 
-  // Transform business plan data to match DocumentViewer format
   const content = {
-    sections: businessPlan.sections.map(section => ({
+    sections: businessPlan.sections.map((section) => ({
       title: section.title,
       content: Array.isArray(section.content) ? section.content : [section.content],
-      ...(section.metrics && {
-        metrics: section.metrics.map(metric => ({
-          label: metric.label,
-          value: metric.value,
-          unit: metric.unit
-        }))
-      })
-    }))
+      metrics: section.metrics?.map((metric) => ({
+        label: metric.label,
+        value: metric.value,
+        unit: metric.unit,
+      })),
+    })),
   }
 
   return (
@@ -85,4 +81,4 @@ export default function BusinessPlanPage() {
       downloadFormat="PDF"
     />
   )
-} 
+}

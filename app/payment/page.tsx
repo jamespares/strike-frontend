@@ -2,14 +2,35 @@
 'use client'
 
 import { loadStripe } from '@stripe/stripe-js'
-import { useUser } from '../../context/UserContext'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { Session } from '@supabase/supabase-js'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export default function Payment() {
-  const { session } = useUser()
+  const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(false)
+  const supabase = createClientComponentClient()
+
+  useEffect(() => {
+    const getSession = async () => {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession()
+      setSession(currentSession)
+    }
+
+    getSession()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [supabase.auth])
 
   const handlePayment = async () => {
     try {
@@ -17,17 +38,17 @@ export default function Payment() {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           email: session?.user.email,
-          userId: session?.user.id 
+          userId: session?.user.id,
         }),
       })
       const data = await res.json()
-      
+
       if (data.error) {
         throw new Error(data.error)
       }
-      
+
       const stripe = await stripePromise
       if (stripe) {
         await stripe.redirectToCheckout({ sessionId: data.sessionId })
@@ -49,19 +70,21 @@ export default function Payment() {
               Complete Your Purchase
               <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 transform -rotate-1 translate-y-1"></div>
             </h1>
-            
+
             <div className="mt-8">
               <div className="rounded-xl bg-gray-50 p-6 border border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-900 relative inline-block">
                   Business Toolkit
                   <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-400/30"></div>
                 </h2>
-                <p className="mt-2 text-gray-600">Complete business planning toolkit with all assets</p>
+                <p className="mt-2 text-gray-600">
+                  Complete business planning toolkit with all assets
+                </p>
                 <div className="mt-4">
                   <span className="text-4xl font-extrabold text-gray-900">$25</span>
                   <span className="text-gray-500">/toolkit</span>
                 </div>
-                
+
                 <ul className="mt-6 space-y-3">
                   <li className="flex items-center text-gray-600">
                     <span className="text-emerald-500 mr-2">✓</span>
@@ -80,7 +103,7 @@ export default function Payment() {
             </div>
 
             <div className="mt-8">
-              <button 
+              <button
                 onClick={handlePayment}
                 disabled={loading}
                 className={`w-full px-6 py-4 bg-emerald-500 text-white rounded-xl text-lg font-medium

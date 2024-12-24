@@ -39,8 +39,8 @@ export default function LoginPage() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
       })
 
       if (error) throw error
@@ -62,7 +62,7 @@ export default function LoginPage() {
             <input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={e => setEmail(e.target.value)}
               placeholder="Email"
               className="w-full px-4 py-2 bg-white rounded-lg border border-gray-200 
                        text-gray-900 placeholder-gray-400 focus:outline-none focus:border-emerald-500"
@@ -74,7 +74,7 @@ export default function LoginPage() {
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={e => setPassword(e.target.value)}
               placeholder="Password"
               className="w-full px-4 py-2 bg-white rounded-lg border border-gray-200 
                        text-gray-900 placeholder-gray-400 focus:outline-none focus:border-emerald-500"

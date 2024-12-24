@@ -63,9 +63,9 @@ export default function RoadmapPage() {
   return (
     <DocumentViewer
       title="Project Roadmap"
-      content={roadmap}
+      content={{ sections: roadmap?.sections || [] }}
       onDownload={handleDownload}
       downloadFormat="PDF"
     />
   )
-} 
+}

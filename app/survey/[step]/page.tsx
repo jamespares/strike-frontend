@@ -3,12 +3,12 @@
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { useEffect, useState } from 'react'
-import { useUser } from '@/context/UserContext'
 import { surveyQuestions } from '@/data/surveyQuestions'
-import { supabase } from '@/lib/clients/supabaseClient'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe } from '@stripe/stripe-js'
+import { Session } from '@supabase/supabase-js'
 
 interface FormData {
   answer: string
@@ -19,18 +19,42 @@ const validationSchema = yup.object().shape({
   answer: yup.string().required('This field is required').max(1000, 'Maximum length exceeded'),
 })
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export default function SurveyStep({ params }: { params: { step: string } }) {
   const router = useRouter()
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormData>({
     resolver: yupResolver(validationSchema),
   })
-  const { session } = useUser()
+  const [session, setSession] = useState<Session | null>(null)
   const [mounted, setMounted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const currentStep = parseInt(params.step)
-  const question = surveyQuestions.find((q) => q.id === currentStep)
+  const question = surveyQuestions.find(q => q.id === currentStep)
+  const supabase = createClientComponentClient()
+
+  useEffect(() => {
+    const getSession = async () => {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession()
+      setSession(currentSession)
+    }
+
+    getSession()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [supabase.auth])
 
   useEffect(() => {
     setMounted(true)
@@ -56,13 +80,13 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
         userId: session.user.id,
         step: currentStep,
         fieldName: question.fieldName,
-        answer: data.answer
+        answer: data.answer,
       })
 
       // If this is the first question (step 1), create a new response
       if (currentStep === 1) {
         console.log('Step 1: Creating new survey response...')
-        
+
         try {
           // First, set all existing responses for this user to not latest
           console.log('Setting previous responses to not latest...')
@@ -84,7 +108,7 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
             .insert({
               user_id: session.user.id,
               [question.fieldName]: data.answer,
-              is_latest: true
+              is_latest: true,
             })
             .select()
             .single()
@@ -94,7 +118,6 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
             throw insertError
           }
           console.log('New response created successfully:', newResponse)
-
         } catch (error) {
           console.error('Database operation failed:', error)
           alert('Failed to save your response. Please try again.')
@@ -103,13 +126,13 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
       } else {
         // For subsequent questions, update the latest response
         console.log(`Step ${currentStep}: Updating existing response...`)
-        
+
         try {
           const { data: updatedResponse, error: updateError } = await supabase
             .from('survey_responses')
             .update({
               [question.fieldName]: data.answer,
-              updated_at: new Date().toISOString()
+              updated_at: new Date().toISOString(),
             })
             .eq('user_id', session.user.id)
             .eq('is_latest', true)
@@ -121,7 +144,6 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
             throw updateError
           }
           console.log('Response updated successfully:', updatedResponse)
-
         } catch (error) {
           console.error('Database operation failed:', error)
           alert('Failed to save your response. Please try again.')
@@ -176,12 +198,14 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
           <div className="flex items-center gap-3 text-gray-500">
             <span className="text-sm font-medium">Progress</span>
             <div className="flex-1 h-1 bg-gray-100 rounded-full">
-              <div 
+              <div
                 className="h-full bg-emerald-500 rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${(currentStep / surveyQuestions.length) * 100}%` }}
               />
             </div>
-            <span className="text-sm font-medium">{Math.round((currentStep / surveyQuestions.length) * 100)}%</span>
+            <span className="text-sm font-medium">
+              {Math.round((currentStep / surveyQuestions.length) * 100)}%
+            </span>
           </div>
         </div>
 
@@ -202,10 +226,8 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
                   placeholder={question.placeholder}
                   autoFocus
                 />
-                {errors.answer && (
-                  <p className="text-red-500 text-sm">{errors.answer.message}</p>
-                )}
-                
+                {errors.answer && <p className="text-red-500 text-sm">{errors.answer.message}</p>}
+
                 <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
                   <p className="font-medium mb-3 text-gray-900 relative inline-block">
                     {question.guidance.title}
@@ -248,15 +270,32 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
               >
                 {isSubmitting ? (
                   <>
-                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg
+                      className="animate-spin h-4 w-4 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
                     </svg>
                     Saving...
                   </>
                 ) : (
                   <>
-                    {currentStep === surveyQuestions.length ? 'Complete' : 'Continue'} <span>→</span>
+                    {currentStep === surveyQuestions.length ? 'Complete' : 'Continue'}{' '}
+                    <span>→</span>
                   </>
                 )}
               </button>

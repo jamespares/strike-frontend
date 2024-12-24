@@ -8,7 +8,10 @@ export async function GET(request: Request) {
     const supabase = createRouteHandlerClient({ cookies })
 
     // Check authentication
-    const { data: { session }, error: authError } = await supabase.auth.getSession()
+    const {
+      data: { session },
+      error: authError,
+    } = await supabase.auth.getSession()
     if (authError || !session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -31,9 +34,6 @@ export async function GET(request: Request) {
     return NextResponse.json(asset)
   } catch (error: any) {
     console.error('Error fetching roadmap:', error)
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch roadmap' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: error.message || 'Failed to fetch roadmap' }, { status: 500 })
   }
-} 
+}

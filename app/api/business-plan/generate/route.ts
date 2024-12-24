@@ -27,21 +27,295 @@ interface BusinessPlanSection {
   }[]
 }
 
+const MARKETING_CHANNELS = {
+  social_media: {
+    instagram: {
+      strategy: 'Visual storytelling and behind-the-scenes content',
+      best_practices: [
+        'Use Instagram Stories for daily updates',
+        'Share user testimonials',
+        'Post process videos',
+      ],
+      example_accounts: ['@shopify', '@mailchimp', '@hubspot'],
+    },
+    linkedin: {
+      strategy: 'Professional networking and thought leadership',
+      best_practices: [
+        'Share industry insights',
+        'Post case studies',
+        'Engage with industry leaders',
+      ],
+      example_accounts: ['@stripe', '@notion', '@figma'],
+    },
+  },
+  content_marketing: {
+    blog: {
+      strategy: 'Educational content and SEO',
+      topics: ['Industry trends', 'How-to guides', 'Case studies'],
+      examples: ['Intercom blog', 'Buffer blog', 'Ahrefs blog'],
+    },
+    newsletter: {
+      strategy: 'Direct engagement and lead nurturing',
+      examples: ['The Hustle', 'Morning Brew', 'Indie Hackers'],
+    },
+  },
+  partnerships: {
+    types: ['Co-marketing', 'Integration partnerships', 'Affiliate programs'],
+    example_companies: ['Stripe Atlas', 'AWS Startups', 'HubSpot for Startups'],
+  },
+}
+
+async function generateBusinessPlan(responses: SurveyResponse) {
+  const prompt = `Create a comprehensive business plan based on:
+  Product: ${responses.product}
+  Motivation/Problem: ${responses.motivation}
+  Current Progress: ${responses.progress}
+  Key Challenges: ${responses.challenges}
+  Timeline: ${responses.deadline}
+  Budget: $${responses.budget}
+
+  Create a detailed business plan with the following sections:
+
+  1. Mission Statement
+  - A compelling mission statement that captures the essence of the business
+  - Clear articulation of the problem being solved
+
+  2. Product and Services
+  - Detailed description of offerings
+  - Key features and benefits
+  - Unique selling propositions
+  - Development roadmap
+
+  3. Business Model
+  - Revenue streams
+  - Cost structure
+  - Key partnerships
+  - Value chain analysis
+  - Scalability considerations
+
+  4. Pricing Strategy
+  - Detailed pricing structure
+  - Competitive analysis
+  - Value-based pricing justification
+  - Pricing tiers if applicable
+
+  5. Revenue Projections
+  - Monthly projections for first year
+  - Annual projections for years 2-5
+  - Key assumptions explained
+  - Break-even analysis
+
+  6. Marketing Strategy
+  - Target audience definition
+  - Channel strategy using this data: ${JSON.stringify(MARKETING_CHANNELS)}
+  - Content strategy
+  - Growth tactics
+  - Partnership opportunities
+  - Specific campaign ideas
+
+  7. Risk Analysis
+  - Market risks
+  - Technical risks
+  - Financial risks
+  - Detailed mitigation strategies
+
+  8. Resource Requirements
+  - Team structure
+  - Technology needs
+  - Infrastructure requirements
+  - Third-party services
+
+  9. Spending Plan
+  - Detailed budget allocation
+  - Marketing spend
+  - Development costs
+  - Operational expenses
+  - Buffer considerations
+
+  Format the response as a JSON object with each section having:
+  - title: string
+  - content: string[] (detailed bullet points)
+  - metrics: array of { label, value, unit } where applicable
+
+  Make all projections and metrics realistic and achievable based on the budget and timeline.
+  Be specific and actionable in all recommendations.`
+
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4-1106-preview',
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.7,
+    response_format: { type: 'json_object' },
+  })
+
+  return JSON.parse(completion.choices[0].message.content!)
+}
+
+async function qualityTestBusinessPlan(businessPlan: any) {
+  const prompt = `Review and improve this business plan:
+  ${JSON.stringify(businessPlan)}
+
+  Evaluate and enhance the plan based on these criteria:
+  1. Specificity - Are all recommendations and strategies specific and actionable?
+  2. Realism - Are projections and timelines realistic?
+  3. Completeness - Are all key aspects of the business covered?
+  4. Consistency - Do all sections align with each other?
+  5. Market Alignment - Does the plan reflect current market conditions?
+
+  If you find any issues or areas for improvement, modify the content accordingly.
+  Return the improved business plan in the same JSON format.`
+
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4-1106-preview',
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.7,
+    response_format: { type: 'json_object' },
+  })
+
+  return JSON.parse(completion.choices[0].message.content!)
+}
+
+async function createPDF(businessPlan: any) {
+  const pdfDoc = await PDFDocument.create()
+  const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman)
+  const timesRomanBoldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold)
+
+  // Load and embed the logo
+  const logoPath = path.join(process.cwd(), 'public', 'logo-square.png')
+  const logoBytes = await fs.readFile(logoPath)
+  const logoImage = await pdfDoc.embedPng(logoBytes)
+  const logoScale = 0.15
+
+  // Title page
+  let page = pdfDoc.addPage([595, 842]) // A4
+  const { width, height } = page.getSize()
+
+  // Draw logo
+  const logoDims = logoImage.scale(logoScale)
+  page.drawImage(logoImage, {
+    x: 50,
+    y: height - 100,
+    width: logoDims.width,
+    height: logoDims.height,
+  })
+
+  // Title
+  page.drawText('Business Plan', {
+    x: 50 + logoDims.width + 20,
+    y: height - 80,
+    size: 36,
+    font: timesRomanBoldFont,
+    color: rgb(0, 0, 0),
+  })
+
+  // Add sections
+  Object.entries(businessPlan).forEach(([sectionKey, section]: [string, any]) => {
+    if (sectionKey === 'metadata') return
+
+    page = pdfDoc.addPage([595, 842])
+    let yPosition = height - 50
+
+    // Section Title
+    page.drawText(section.title, {
+      x: 50,
+      y: yPosition,
+      size: 24,
+      font: timesRomanBoldFont,
+      color: rgb(0, 0, 0),
+    })
+    yPosition -= 40
+
+    // Section Content
+    const content = Array.isArray(section.content) ? section.content : [section.content]
+    content.forEach((item: string) => {
+      const lines = wrapText(item, 70) // Wrap at 70 characters
+      lines.forEach(line => {
+        if (yPosition < 50) {
+          page = pdfDoc.addPage([595, 842])
+          yPosition = height - 50
+        }
+
+        page.drawText(line, {
+          x: 50,
+          y: yPosition,
+          size: 12,
+          font: timesRomanFont,
+          color: rgb(0, 0, 0),
+        })
+        yPosition -= 20
+      })
+      yPosition -= 10 // Extra space between items
+    })
+
+    // Metrics if available
+    if (section.metrics) {
+      yPosition -= 20
+      page.drawText('Key Metrics:', {
+        x: 50,
+        y: yPosition,
+        size: 14,
+        font: timesRomanBoldFont,
+        color: rgb(0, 0, 0),
+      })
+      yPosition -= 20
+
+      section.metrics.forEach((metric: any) => {
+        if (yPosition < 50) {
+          page = pdfDoc.addPage([595, 842])
+          yPosition = height - 50
+        }
+
+        const metricText = `${metric.label}: ${metric.value}${metric.unit ? ' ' + metric.unit : ''}`
+        page.drawText(metricText, {
+          x: 50,
+          y: yPosition,
+          size: 12,
+          font: timesRomanFont,
+          color: rgb(0, 0, 0),
+        })
+        yPosition -= 20
+      })
+    }
+  })
+
+  return await pdfDoc.save()
+}
+
+function wrapText(text: string, maxChars: number): string[] {
+  const words = text.split(' ')
+  const lines: string[] = []
+  let currentLine = ''
+
+  words.forEach(word => {
+    if ((currentLine + ' ' + word).length <= maxChars) {
+      currentLine += (currentLine ? ' ' : '') + word
+    } else {
+      lines.push(currentLine)
+      currentLine = word
+    }
+  })
+
+  if (currentLine) {
+    lines.push(currentLine)
+  }
+
+  return lines
+}
+
 export async function POST(request: Request) {
   try {
     // Initialize Supabase client
     const supabase = createRouteHandlerClient({ cookies })
 
     // Check authentication
-    const { data: { session }, error: authError } = await supabase.auth.getSession()
+    const {
+      data: { session },
+      error: authError,
+    } = await supabase.auth.getSession()
     if (authError || !session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { responses, questions } = await request.json() as {
-      responses: SurveyResponse
-      questions: SurveyQuestion[]
-    }
+    const { responses, questions, responseId } = await request.json()
 
     if (!responses || !questions) {
       return NextResponse.json(
@@ -58,280 +332,57 @@ export async function POST(request: Request) {
         asset_type: 'business_plan',
         title: 'Business Plan',
         status: 'generating',
-        content: null
+        content: null,
+        survey_response_id: responseId,
       })
       .select()
       .single()
 
     if (assetError) {
       console.error('Error creating asset record:', assetError)
-      return NextResponse.json(
-        { error: 'Failed to initialize asset generation' },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: 'Failed to initialize asset generation' }, { status: 500 })
     }
 
-    // Generate business plan content using OpenAI
-    const prompt = `Create a comprehensive business plan based on:
-    Product: ${responses.product}
-    Motivation/Problem: ${responses.motivation}
-    Current Progress: ${responses.progress}
-    Key Challenges: ${responses.challenges}
-    Timeline: ${responses.deadline}
-    Budget: $${responses.budget}
-    
-    The motivation/problem statement should be the foundation for the entire plan.
-    Use it to shape:
-    - Business objectives and goals
-    - Target market selection
-    - Value proposition
-    - Strategic priorities
-    - Success metrics
-    
-    Format the response as a JSON object with these sections:
-    
-    1. Executive Summary
-       - Vision and mission derived from the motivation
-       - Clear connection between problem and solution
-       - High-level objectives and success criteria
-    
-    2. Strategic Analysis
-       - Detailed problem/motivation analysis
-       - Market size and opportunity
-       - Competitive landscape
-       - Unique value proposition
-    
-    3. Product Strategy
-       - Product description and features
-       - Development roadmap
-       - Technical requirements
-       - Innovation opportunities
-    
-    4. Market Strategy
-       - Target customer segments
-       - Go-to-market plan
-       - Marketing channels
-       - Pricing strategy based on value proposition
-    
-    5. Financial Projections
-       - Revenue streams
-       - Cost structure
-       - Break-even analysis
-       - Funding requirements
-    
-    6. Implementation Timeline
-       - Key milestones
-       - Resource allocation
-       - Dependencies
-       - Critical path
-    
-    7. Risk Analysis
-       - Market risks
-       - Technical risks
-       - Financial risks
-       - Mitigation strategies
-    
-    8. Key Performance Indicators (KPIs)
-       Include specific metrics for each area:
-       
-       Business Health:
-       - Monthly Recurring Revenue (MRR)
-       - Customer Acquisition Cost (CAC)
-       - Lifetime Value (LTV)
-       - Burn Rate
-       - Runway
-    
-       Product:
-       - User Adoption Rate
-       - Feature Usage
-       - User Retention
-       - System Uptime
-       - Performance Metrics
-    
-       Customer Success:
-       - Customer Satisfaction Score
-       - Net Promoter Score
-       - Support Response Time
-       - Customer Churn Rate
-       - Feature Request Implementation
-    
-       Marketing & Sales:
-       - Conversion Rates
-       - Lead Generation
-       - Sales Cycle Length
-       - Website Traffic
-       - Social Media Engagement
-    
-    For each KPI, include:
-    - Description
-    - Target value
-    - Measurement frequency
-    - Tools for tracking
-    - Action triggers (what to do if KPI is off target)
-    
-    Each section should have:
-    - title: string
-    - content: string[] (bullet points)
-    - metrics: (optional) array of { label, value, unit }
-    
-    Make all projections and metrics realistic and achievable based on the budget and timeline.
-    Focus on metrics that directly relate to the core motivation and problem being solved.`
+    // Generate initial business plan
+    console.log('Generating initial business plan...')
+    const initialPlan = await generateBusinessPlan(responses)
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4-1106-preview',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-      response_format: { type: "json_object" }
-    })
+    // Quality test and improve the plan
+    console.log('Quality testing business plan...')
+    const finalPlan = await qualityTestBusinessPlan(initialPlan)
 
-    const content = completion.choices[0].message.content
-    if (!content) {
-      throw new Error('No content generated from OpenAI')
+    // Generate PDF
+    console.log('Creating PDF...')
+    const pdfBytes = await createPDF(finalPlan)
+
+    // Store the PDF in Supabase storage
+    const { error: uploadError } = await supabase.storage
+      .from('business-plans')
+      .upload(`${session.user.id}/${asset.id}.pdf`, pdfBytes)
+
+    if (uploadError) {
+      console.error('Error uploading PDF:', uploadError)
+      throw uploadError
     }
 
-    const businessPlan = JSON.parse(content)
-
-    // Create PDF document
-    const pdfDoc = await PDFDocument.create()
-    const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman)
-    const timesRomanBoldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold)
-
-    // Load and embed the logo
-    const logoPath = path.join(process.cwd(), 'public', 'logo-square.png')
-    const logoBytes = await fs.readFile(logoPath)
-    const logoImage = await pdfDoc.embedPng(logoBytes)
-    const logoScale = 0.15
-
-    // Title page
-    let page = pdfDoc.addPage([595, 842]) // A4
-    const { width, height } = page.getSize()
-
-    // Draw logo
-    const logoDims = logoImage.scale(logoScale)
-    page.drawImage(logoImage, {
-      x: 50,
-      y: height - 100,
-      width: logoDims.width,
-      height: logoDims.height,
-    })
-
-    // Title
-    page.drawText('Business Plan', {
-      x: 50 + logoDims.width + 20,
-      y: height - 80,
-      size: 36,
-      font: timesRomanBoldFont,
-      color: rgb(0, 0, 0)
-    })
-
-    // Add sections
-    businessPlan.sections.forEach((section: BusinessPlanSection) => {
-      page = pdfDoc.addPage([595, 842])
-      let yPosition = height - 50
-
-      // Section Title
-      page.drawText(section.title, {
-        x: 50,
-        y: yPosition,
-        size: 24,
-        font: timesRomanBoldFont,
-        color: rgb(0, 0, 0)
-      })
-      yPosition -= 40
-
-      // Section Content
-      const content = Array.isArray(section.content) ? section.content : [section.content]
-      content.forEach((item: string) => {
-        const lines = wrapText(item, 495)
-        lines.forEach(line => {
-          page.drawText(line, {
-            x: 50,
-            y: yPosition,
-            size: 12,
-            font: timesRomanFont,
-            color: rgb(0, 0, 0)
-          })
-          yPosition -= 20
-        })
-      })
-
-      // Metrics (if any)
-      if (section.metrics && section.metrics.length > 0) {
-        yPosition -= 20
-        page.drawText('Key Metrics:', {
-          x: 50,
-          y: yPosition,
-          size: 14,
-          font: timesRomanBoldFont,
-          color: rgb(0, 0, 0)
-        })
-        yPosition -= 30
-
-        section.metrics.forEach(metric => {
-          const metricText = `${metric.label}: ${metric.value}${metric.unit ? ' ' + metric.unit : ''}`
-          page.drawText(metricText, {
-            x: 50,
-            y: yPosition,
-            size: 12,
-            font: timesRomanFont,
-            color: rgb(0, 0, 0)
-          })
-          yPosition -= 20
-        })
-      }
-    })
-
-    const pdfBytes = await pdfDoc.save()
-    const pdfBase64 = Buffer.from(pdfBytes).toString('base64')
-
-    // Update the asset record with both business plan and PDF
+    // Update asset record
     const { error: updateError } = await supabase
       .from('user_assets')
       .update({
-        content: {
-          businessPlan,
-          pdfBase64
-        },
-        status: 'completed'
+        status: 'completed',
+        content: finalPlan,
+        file_path: `${session.user.id}/${asset.id}.pdf`,
       })
       .eq('id', asset.id)
 
     if (updateError) {
-      throw new Error(`Database error: ${updateError.message}`)
+      console.error('Error updating asset record:', updateError)
+      throw updateError
     }
 
-    return NextResponse.json({
-      message: 'Business plan generated successfully',
-      assetId: asset.id,
-      businessPlan
-    })
-  } catch (error: any) {
+    return NextResponse.json({ success: true, assetId: asset.id })
+  } catch (error) {
     console.error('Error generating business plan:', error)
-    return NextResponse.json(
-      { error: error.message || 'Failed to generate business plan' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to generate business plan' }, { status: 500 })
   }
 }
-
-function wrapText(text: string, maxWidth: number): string[] {
-  const words = text.split(' ')
-  const lines: string[] = []
-  let currentLine = ''
-
-  words.forEach(word => {
-    const testLine = currentLine ? `${currentLine} ${word}` : word
-    if (testLine.length <= maxWidth) {
-      currentLine = testLine
-    } else {
-      lines.push(currentLine)
-      currentLine = word
-    }
-  })
-
-  if (currentLine) {
-    lines.push(currentLine)
-  }
-
-  return lines
-} 
