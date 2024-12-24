@@ -34,9 +34,16 @@ test.describe('Application Flow', () => {
     })
 
     await test.step('Complete Survey', async () => {
-      await page.getByPlaceholder('Enter your answer').fill('Test Product')
+      // Wait for the form to be ready
+      await page.waitForSelector('textarea[placeholder*="SaaS tool"]', { timeout: 10000 })
+
+      // Fill the first question
+      await page.locator('textarea').fill('Test Product')
       await page.getByRole('button', { name: 'Next' }).click()
-      await expect(page.getByText('Test Product')).toBeVisible({ timeout: 10000 })
+
+      // Verify we moved to the next question
+      await expect(page).toHaveURL('http://localhost:3000/survey/2', { timeout: 10000 })
+      await page.waitForLoadState('networkidle')
     })
   })
 
@@ -49,13 +56,27 @@ test.describe('Application Flow', () => {
       await page.waitForLoadState('networkidle')
     })
 
-    await test.step('Generate Assets', async () => {
-      await page.getByRole('button', { name: 'Generate All' }).click()
+    await test.step('Generate Business Plan', async () => {
+      // Wait for the dashboard to be fully loaded
+      await page.waitForSelector('text=Business Plan', { timeout: 10000 })
+      await page.getByRole('button', { name: 'Generate' }).first().click()
+
+      // Wait for generation to complete and view button to appear
       await page.waitForSelector('text=View', { timeout: 120000 })
 
+      // Verify business plan exists
       const businessPlanExists = await page.getByText('Business Plan').isVisible()
       expect(businessPlanExists).toBeTruthy()
+    })
 
+    await test.step('Generate Roadmap', async () => {
+      // Generate roadmap
+      await page.getByRole('button', { name: 'Generate' }).last().click()
+
+      // Wait for generation to complete
+      await page.waitForSelector('text=View', { timeout: 120000 })
+
+      // Verify roadmap exists
       const roadmapExists = await page.getByText('Launch Roadmap').isVisible()
       expect(roadmapExists).toBeTruthy()
     })

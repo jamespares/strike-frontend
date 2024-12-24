@@ -76,11 +76,18 @@ test.describe('Authentication Flow', () => {
 
     // Verify successful login
     await expect(page).toHaveURL('http://localhost:3000/dashboard', { timeout: 10000 })
+    await page.waitForLoadState('networkidle')
+
+    // Wait for session to be established with exponential backoff
+    let session = null
+    for (let i = 0; i < 5; i++) {
+      const { data } = await supabase.auth.getSession()
+      session = data.session
+      if (session) break
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000)) // Exponential backoff
+    }
 
     // Verify session exists
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
     expect(session).not.toBeNull()
     expect(session?.user?.email).toBe(testUserEmail)
   })

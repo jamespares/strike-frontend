@@ -39,7 +39,6 @@ export default function DashboardPage() {
   const [isInitializing, setIsInitializing] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({})
-  const [isGeneratingAll, setIsGeneratingAll] = useState(false)
   const [generatedAssets, setGeneratedAssets] = useState<Record<string, boolean>>({})
   const [surveyResponses, setSurveyResponses] = useState<SurveyResponse | null>(null)
   const [surveyQuestions, setSurveyQuestions] = useState<SurveyQuestion[] | null>(null)
@@ -233,28 +232,6 @@ export default function DashboardPage() {
     return null
   }
 
-  const aiTools: Asset[] = [
-    {
-      id: 'business-plan',
-      title: 'Business Plan Generator',
-      description:
-        'Generate a comprehensive business plan with revenue projections and marketing strategy',
-      type: 'document',
-      path: '/business-plan',
-      lastUpdated: new Date().toISOString(),
-    },
-    {
-      id: 'roadmap',
-      title: 'Launch Roadmap',
-      description: 'Get a detailed step-by-step guide to launching your business',
-      type: 'document',
-      path: '/roadmap',
-      lastUpdated: new Date().toISOString(),
-    },
-  ]
-
-  const boilerplates: Asset[] = []
-
   const handleDownload = async (assetId: string) => {
     try {
       const response = await fetch(`/api/${assetId}/download`)
@@ -282,14 +259,6 @@ export default function DashboardPage() {
     }
   }
 
-  const handleNewProject = () => {
-    // Only clear the UI state
-    setGeneratedAssets({})
-    setLoadingStates({})
-    setSurveyResponses(null)
-    setShowModal(true)
-  }
-
   const handleConfirmNewProject = async () => {
     try {
       // Reset UI states
@@ -302,68 +271,6 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error starting new project:', error)
       alert('Failed to start new project. Please try again.')
-    }
-  }
-
-  const handleGenerateAll = async () => {
-    if (!surveyResponses || !surveyQuestions) {
-      console.error('Survey data not available')
-      alert('Please complete the survey first')
-      router.push('/survey/1')
-      return
-    }
-
-    if (Object.values(loadingStates).some(state => state) || isGeneratingAll) {
-      alert('Please wait for current generations to complete before starting new ones.')
-      return
-    }
-
-    setIsGeneratingAll(true)
-    const allAssets = ['business-plan', 'roadmap']
-    const newLoadingStates = { ...loadingStates }
-    allAssets.forEach(id => (newLoadingStates[id] = true))
-    setLoadingStates(newLoadingStates)
-
-    try {
-      await Promise.all(
-        allAssets.map(async assetId => {
-          try {
-            console.log(`Making request to /api/${assetId}/generate`)
-            const response = await fetch(`/api/${assetId}/generate`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                responses: surveyResponses,
-                questions: surveyQuestions,
-                responseId: surveyResponses.id,
-              }),
-            })
-
-            if (!response.ok) {
-              const errorData = await response.json()
-              console.error(`Generation failed for ${assetId}:`, errorData)
-              throw new Error(errorData.error || 'Generation failed')
-            }
-
-            const result = await response.json()
-            console.log(`Generation successful for ${assetId}:`, result)
-
-            await checkAssetStatus(assetId)
-          } catch (error) {
-            console.error(`Error generating ${assetId}:`, error)
-            alert(`Failed to generate ${assetId}. Please try again.`)
-          }
-        })
-      )
-    } catch (error) {
-      console.error('Error in parallel generation:', error)
-    } finally {
-      setIsGeneratingAll(false)
-      const resetLoadingStates = { ...loadingStates }
-      allAssets.forEach(id => (resetLoadingStates[id] = false))
-      setLoadingStates(resetLoadingStates)
     }
   }
 
@@ -380,7 +287,7 @@ export default function DashboardPage() {
     }
 
     // Check if any other asset is currently being generated
-    if (loadingStates[assetId] || isGeneratingAll) {
+    if (loadingStates[assetId]) {
       alert('Please wait for the current generation to complete before starting another one.')
       return
     }
@@ -397,7 +304,7 @@ export default function DashboardPage() {
         body: JSON.stringify({
           responses: surveyResponses,
           questions: surveyQuestions,
-          responseId: surveyResponses.id, // Include the response ID
+          responseId: surveyResponses.id,
         }),
       })
 
@@ -466,7 +373,7 @@ export default function DashboardPage() {
           <div className="w-full lg:w-80 flex-shrink-0 space-y-4">
             {/* New Project Button - Moved up */}
             <button
-              onClick={handleNewProject}
+              onClick={() => router.push('/survey/1')}
               className="w-full px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
                        hover:bg-emerald-600 transform hover:scale-105 active:scale-95
                        transition duration-200 ease-in-out shadow-sm flex items-center justify-center"
@@ -615,7 +522,9 @@ export default function DashboardPage() {
                   className="block py-1 text-sm text-emerald-600 hover:text-emerald-500"
                 >
                   MAKE{' '}
-                  <span className="text-xs text-gray-500">- Solo founder's guide by @levelsio</span>
+                  <span className="text-xs text-gray-500">
+                    - Solo founder&apos;s guide by @levelsio
+                  </span>
                 </a>
               </nav>
             </div>
@@ -638,33 +547,6 @@ export default function DashboardPage() {
 
             {/* Asset Generation Tiles */}
             <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 mb-8">
-              {/* Generate All Tile */}
-              <div className="overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200 bg-white">
-                <div className="px-4 py-5 sm:p-6">
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900">Generate All</h3>
-                    <p className="mt-1 text-sm text-gray-500">Create all tools in one click</p>
-                  </div>
-                  <div className="mt-4">
-                    {isGeneratingAll ? (
-                      <div className="flex items-center justify-center w-full">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-emerald-500"></div>
-                        <span className="ml-2 text-sm text-gray-500">Generating...</span>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={handleGenerateAll}
-                        className="w-full px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
-                                 hover:bg-emerald-600 transform hover:scale-105 active:scale-95
-                                 transition duration-200 ease-in-out"
-                      >
-                        Generate All
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
               {/* Existing Asset Tiles */}
               {assets.map(asset => (
                 <div
@@ -729,8 +611,8 @@ export default function DashboardPage() {
                 Need to code something? Don't know how to do it? No problem! 🚀
               </h3>
               <p className="text-gray-600 mb-4">
-                Check out Marc Lou's popular course on coding essentials for entrepreneurs. Perfect
-                for founders who want to build their prototype!
+                Check out Marc Lou&apos;s popular course on coding essentials for entrepreneurs.
+                Perfect for founders who want to build their prototype!
               </p>
               <a
                 href="https://codefa.st/?via=james"
