@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { ArrowDownTrayIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { SurveyQuestion } from '@/data/surveyQuestions'
@@ -44,15 +45,13 @@ export default function DashboardPage() {
   const [surveyQuestions, setSurveyQuestions] = useState<SurveyQuestion[] | null>(null)
 
   useEffect(() => {
-    const getSession = async () => {
+    const checkSession = async () => {
       const {
-        data: { session: currentSession },
+        data: { session },
       } = await supabase.auth.getSession()
-      setSession(currentSession)
-      setUser(currentSession?.user ?? null)
+      setSession(session)
+      setUser(session?.user ?? null)
     }
-
-    getSession()
 
     const {
       data: { subscription },
@@ -61,7 +60,11 @@ export default function DashboardPage() {
       setUser(session?.user ?? null)
     })
 
-    return () => subscription.unsubscribe()
+    checkSession()
+
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [supabase.auth])
 
   const assets: Asset[] = [
@@ -73,20 +76,12 @@ export default function DashboardPage() {
       path: '/business-plan',
       lastUpdated: new Date().toISOString(),
     },
-    {
-      id: 'roadmap',
-      title: 'Launch Roadmap',
-      description: 'Step-by-step guide to launching your business',
-      type: 'document',
-      path: '/roadmap',
-      lastUpdated: new Date().toISOString(),
-    },
   ]
 
   useEffect(() => {
     // Check which assets have been generated
     const checkGeneratedAssets = async () => {
-      const assetIds = ['business-plan', 'roadmap']
+      const assetIds = ['business-plan']
       const states: Record<string, boolean> = {}
 
       for (const id of assetIds) {
@@ -162,7 +157,7 @@ export default function DashboardPage() {
         // Check for assets generated from this latest response
         if (responses) {
           const states: Record<string, boolean> = {}
-          const allAssets = ['business-plan', 'roadmap']
+          const allAssets = ['business-plan']
 
           for (const assetId of allAssets) {
             try {
@@ -187,7 +182,7 @@ export default function DashboardPage() {
     }
 
     fetchSurveyData()
-  }, [session])
+  }, [session, supabase])
 
   useEffect(() => {
     const checkAllAssetStatus = async () => {
@@ -198,7 +193,7 @@ export default function DashboardPage() {
       }
 
       console.log('Checking assets for survey response:', surveyResponses.id)
-      const allAssets = ['business-plan', 'roadmap']
+      const allAssets = ['business-plan']
       const states: Record<string, boolean> = {}
 
       for (const assetId of allAssets) {
@@ -335,10 +330,12 @@ export default function DashboardPage() {
             <div className="flex items-center">
               <Link href="/" className="flex items-center">
                 <div className="flex-shrink-0 h-10 w-auto flex items-center">
-                  <img
+                  <Image
                     src="/logo-square.png"
                     alt="Strike Logo"
                     className="h-full w-auto object-contain"
+                    width={40}
+                    height={40}
                   />
                 </div>
                 <span className="text-2xl font-bold text-gray-900 relative inline-block ml-3">
@@ -373,7 +370,18 @@ export default function DashboardPage() {
           <div className="w-full lg:w-80 flex-shrink-0 space-y-4">
             {/* New Project Button - Moved up */}
             <button
-              onClick={() => router.push('/survey/1')}
+              onClick={async () => {
+                try {
+                  console.log('Starting navigation to survey...')
+                  console.log('Current session:', JSON.stringify(session, null, 2))
+                  console.log('Current user:', JSON.stringify(user, null, 2))
+                  console.log('Attempting direct navigation to /survey/1...')
+                  window.location.href = '/survey/1'
+                } catch (error) {
+                  console.error('Navigation error:', error)
+                  console.error('Error details:', JSON.stringify(error, null, 2))
+                }
+              }}
               className="w-full px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium
                        hover:bg-emerald-600 transform hover:scale-105 active:scale-95
                        transition duration-200 ease-in-out shadow-sm flex items-center justify-center"
@@ -386,7 +394,7 @@ export default function DashboardPage() {
                   d="M12 4v16m8-8H4"
                 />
               </svg>
-              Generate New Toolkit
+              Generate New Plan
             </button>
 
             {/* AI Tools Section */}

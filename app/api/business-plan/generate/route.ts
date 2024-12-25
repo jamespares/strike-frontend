@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { openai } from '@/lib/clients/openaiClient'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
-import { SurveyQuestion } from '@/data/surveyQuestions'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import fs from 'fs/promises'
 import path from 'path'
@@ -17,14 +16,24 @@ interface SurveyResponse {
   budget: string | number
 }
 
+interface Metric {
+  label: string
+  value: string | number
+  unit?: string
+}
+
 interface BusinessPlanSection {
   title: string
   content: string | string[]
-  metrics?: {
-    label: string
-    value: string | number
-    unit?: string
-  }[]
+  metrics?: Metric[]
+}
+
+interface BusinessPlan {
+  [key: string]: {
+    title: string
+    content: string[]
+    metrics?: Metric[]
+  }
 }
 
 const MARKETING_CHANNELS = {
@@ -150,7 +159,7 @@ async function generateBusinessPlan(responses: SurveyResponse) {
   return JSON.parse(completion.choices[0].message.content!)
 }
 
-async function qualityTestBusinessPlan(businessPlan: any) {
+async function qualityTestBusinessPlan(businessPlan: BusinessPlan): Promise<BusinessPlan> {
   const prompt = `Review and improve this business plan:
   ${JSON.stringify(businessPlan)}
 
@@ -174,7 +183,7 @@ async function qualityTestBusinessPlan(businessPlan: any) {
   return JSON.parse(completion.choices[0].message.content!)
 }
 
-async function createPDF(businessPlan: any) {
+async function createPDF(businessPlan: BusinessPlan) {
   const pdfDoc = await PDFDocument.create()
   const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman)
   const timesRomanBoldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold)
@@ -187,7 +196,7 @@ async function createPDF(businessPlan: any) {
 
   // Title page
   let page = pdfDoc.addPage([595, 842]) // A4
-  const { width, height } = page.getSize()
+  const { height } = page.getSize()
 
   // Draw logo
   const logoDims = logoImage.scale(logoScale)
@@ -208,7 +217,7 @@ async function createPDF(businessPlan: any) {
   })
 
   // Add sections
-  Object.entries(businessPlan).forEach(([sectionKey, section]: [string, any]) => {
+  Object.entries(businessPlan).forEach(([sectionKey, section]: [string, BusinessPlanSection]) => {
     if (sectionKey === 'metadata') return
 
     page = pdfDoc.addPage([595, 842])
@@ -227,14 +236,19 @@ async function createPDF(businessPlan: any) {
     // Section Content
     const content = Array.isArray(section.content) ? section.content : [section.content]
     content.forEach((item: string) => {
+      if (!item) return // Skip undefined or null items
+
       const lines = wrapText(item, 70) // Wrap at 70 characters
       lines.forEach(line => {
+        if (!line) return // Skip empty lines
+
         if (yPosition < 50) {
           page = pdfDoc.addPage([595, 842])
           yPosition = height - 50
         }
 
-        page.drawText(line, {
+        page.drawText(line.toString(), {
+          // Convert to string to be safe
           x: 50,
           y: yPosition,
           size: 12,
@@ -248,17 +262,9 @@ async function createPDF(businessPlan: any) {
 
     // Metrics if available
     if (section.metrics) {
-      yPosition -= 20
-      page.drawText('Key Metrics:', {
-        x: 50,
-        y: yPosition,
-        size: 14,
-        font: timesRomanBoldFont,
-        color: rgb(0, 0, 0),
-      })
-      yPosition -= 20
+      section.metrics.forEach((metric: Metric) => {
+        if (!metric.label || !metric.value) return // Skip incomplete metrics
 
-      section.metrics.forEach((metric: any) => {
         if (yPosition < 50) {
           page = pdfDoc.addPage([595, 842])
           yPosition = height - 50
@@ -269,7 +275,7 @@ async function createPDF(businessPlan: any) {
           x: 50,
           y: yPosition,
           size: 12,
-          font: timesRomanFont,
+          font: timesRomanBoldFont,
           color: rgb(0, 0, 0),
         })
         yPosition -= 20

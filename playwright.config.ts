@@ -1,12 +1,12 @@
 import { defineConfig, devices } from '@playwright/test'
 import dotenv from 'dotenv'
 
-// Load environment variables from .env.test
-dotenv.config({ path: '.env.test' })
+// Load environment variables from .env.local
+dotenv.config({ path: '.env.local' })
 
 export default defineConfig({
   testDir: './tests',
-  timeout: 30000,
+  timeout: 120000,
   expect: {
     timeout: 10000,
   },

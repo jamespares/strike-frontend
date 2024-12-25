@@ -5,151 +5,124 @@ import { useEffect, useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Session } from '@supabase/supabase-js'
 
-export default function PaymentSuccess() {
+export default function PaymentSuccessPage() {
   const router = useRouter()
-  const [session, setSession] = useState<Session | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [statusLog, setStatusLog] = useState<string[]>([])
   const supabase = createClientComponentClient()
+  const [session, setSession] = useState<Session | null>(null)
+  const [statusLogs, setStatusLogs] = useState<string[]>([])
 
-  // Add log function
   const addLog = (message: string) => {
-    console.log(`[Payment Success] ${message}`)
-    setStatusLog(prev => [...prev, `${new Date().toISOString()}: ${message}`])
+    console.log(`[Payment] ${message}`)
+    setStatusLogs(prev => [...prev, `${new Date().toISOString()}: ${message}`])
   }
 
   useEffect(() => {
-    const getSession = async () => {
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession()
-      setSession(currentSession)
-    }
-
-    getSession()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-    })
-
-    return () => subscription.unsubscribe()
+    addLog('Component mounted, checking session...')
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        if (session) {
+          addLog(`Session found for user: ${session.user.id}`)
+          setSession(session)
+        } else {
+          addLog('No session found')
+        }
+      })
+      .catch(error => {
+        addLog(`Error getting session: ${error.message}`)
+      })
   }, [supabase.auth])
 
   useEffect(() => {
-    if (!session?.user?.id) {
-      addLog('No user session found')
+    if (!session) {
+      addLog('No active session, waiting...')
       return
     }
 
     let timeoutId: NodeJS.Timeout
+    let attemptCount = 0
+    const MAX_ATTEMPTS = 30 // 1 minute maximum (2 seconds * 30)
 
-    const checkStatus = async () => {
+    const checkPaymentStatus = async () => {
       try {
-        addLog('Checking payment status...')
+        attemptCount++
+        addLog(`Checking payment status (attempt ${attemptCount}/${MAX_ATTEMPTS})...`)
 
-        // Check payment status
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('payment_status')
-          .eq('id', session.user.id)
-          .single()
+        const { data: payments, error } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
 
-        if (userError) {
-          addLog(`Error fetching user payment status: ${userError.message}`)
-          throw userError
+        if (error) {
+          addLog(`Error fetching payment status: ${error.message}`)
+          throw error
         }
 
-        addLog(`Payment status: ${userData?.payment_status}`)
+        if (!payments || payments.length === 0) {
+          addLog('No payment records found')
+        } else {
+          addLog(`Latest payment status: ${payments[0].status}`)
+          addLog(`Payment details: ${JSON.stringify(payments[0], null, 2)}`)
+        }
 
-        if (userData?.payment_status === 'paid') {
-          addLog('Payment confirmed, redirecting to dashboard')
+        const hasSuccessfulPayment =
+          payments && payments.length > 0 && payments[0].status === 'succeeded'
+
+        if (hasSuccessfulPayment) {
+          addLog('Payment successful, redirecting to dashboard...')
           router.push('/dashboard')
-          return
+        } else if (attemptCount < MAX_ATTEMPTS) {
+          addLog('Payment not confirmed yet, checking again in 2 seconds...')
+          timeoutId = setTimeout(checkPaymentStatus, 2000)
+        } else {
+          addLog('Maximum check attempts reached. Please contact support if payment was made.')
         }
-
-        addLog('Payment not yet confirmed, checking again in 2 seconds')
-        timeoutId = setTimeout(checkStatus, 2000)
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
         addLog(`Error during status check: ${errorMessage}`)
-        timeoutId = setTimeout(checkStatus, 2000)
+        if (attemptCount < MAX_ATTEMPTS) {
+          timeoutId = setTimeout(checkPaymentStatus, 2000)
+        }
       }
     }
 
-    checkStatus()
+    addLog('Starting payment status checks...')
+    checkPaymentStatus()
 
     return () => {
       if (timeoutId) {
-        addLog('Cleaning up status check interval')
+        addLog('Cleaning up status check timer')
         clearTimeout(timeoutId)
       }
     }
-  }, [session, router])
-
-  // Add status log to the UI (hidden in production, visible in development)
-  const isDevelopment = process.env.NODE_ENV === 'development'
+  }, [session, supabase, router])
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-4xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-          <div className="p-8">
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 mb-6 bg-emerald-100 rounded-full">
-                <div className="w-8 h-8 text-emerald-500">
-                  <svg className="animate-spin" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                </div>
-              </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          <div className="text-center">
+            <h2 className="text-2xl font-semibold mb-4">Processing Payment</h2>
+            <p className="text-gray-600 mb-4">
+              Please wait while we confirm your payment. You will be redirected automatically.
+            </p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-8"></div>
 
-              <h1 className="text-3xl font-extrabold text-gray-900 relative inline-block">
-                Processing Your Payment
-                <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 transform -rotate-1 translate-y-1"></div>
-              </h1>
-
-              <p className="mt-4 text-lg text-gray-600">
-                Please wait while we confirm your payment...
-              </p>
-
-              <div className="mt-8">
-                <div className="max-w-md mx-auto">
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-500 animate-pulse rounded-full w-full"></div>
+            {/* Status Logs */}
+            <div className="mt-8 text-left">
+              <div className="bg-gray-50 rounded-lg p-4 max-h-60 overflow-auto">
+                <h3 className="text-sm font-medium text-gray-900 mb-2">Status Updates:</h3>
+                {statusLogs.map((log, index) => (
+                  <div
+                    key={index}
+                    className="text-xs text-gray-600 mb-1 font-mono whitespace-pre-wrap"
+                  >
+                    {log}
                   </div>
-                  <p className="mt-4 text-sm text-gray-500">
-                    You&apos;ll be automatically redirected to your dashboard when ready.
-                  </p>
-                </div>
+                ))}
               </div>
-
-              {isDevelopment && statusLog.length > 0 && (
-                <div className="mt-8 text-left">
-                  <div className="bg-gray-50 rounded-lg p-4 max-h-60 overflow-auto">
-                    <h3 className="text-sm font-medium text-gray-900 mb-2">Status Log:</h3>
-                    {statusLog.map((log, index) => (
-                      <div key={index} className="text-xs text-gray-600 mb-1 font-mono">
-                        {log}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>

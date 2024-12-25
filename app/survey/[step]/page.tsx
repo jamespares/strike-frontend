@@ -7,8 +7,9 @@ import { surveyQuestions } from '@/data/surveyQuestions'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
-import { loadStripe } from '@stripe/stripe-js'
 import { Session } from '@supabase/supabase-js'
+
+console.log('Survey questions loaded:', surveyQuestions)
 
 interface FormData {
   answer: string
@@ -18,8 +19,6 @@ interface FormData {
 const validationSchema = yup.object().shape({
   answer: yup.string().required('This field is required').max(1000, 'Maximum length exceeded'),
 })
-
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export default function SurveyStep({ params }: { params: { step: string } }) {
   const router = useRouter()
@@ -39,31 +38,37 @@ export default function SurveyStep({ params }: { params: { step: string } }) {
 
   useEffect(() => {
     const getSession = async () => {
+      console.log('Checking session...')
       const {
         data: { session: currentSession },
       } = await supabase.auth.getSession()
+      console.log('Session:', currentSession)
+      if (!currentSession) {
+        console.log('No session found, redirecting to login...')
+        window.location.href = '/login'
+        return
+      }
       setSession(currentSession)
     }
 
     getSession()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-    })
-
-    return () => subscription.unsubscribe()
   }, [supabase.auth])
 
   useEffect(() => {
-    setMounted(true)
-    if (!session) {
-      router.push('/')
+    if (!question && mounted) {
+      console.log('No question found, redirecting to step 1...')
+      window.location.href = '/survey/1'
     }
-  }, [session, router])
+    setMounted(true)
+  }, [question, mounted])
 
-  if (!mounted || !question) {
+  if (!mounted) {
+    console.log('Not mounted yet, returning null')
+    return null
+  }
+
+  if (!question) {
+    console.log('No question found for step', currentStep)
     return null
   }
 

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export default function LoginPage() {
@@ -13,40 +14,57 @@ export default function LoginPage() {
   const router = useRouter()
   const supabase = createClientComponentClient()
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setLoading(true)
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      if (error) throw error
+      if (signInError) throw signInError
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) {
+        throw new Error('Session not established after login')
+      }
+
+      console.log('Login successful:', {
+        email: session.user.email,
+        sessionExists: !!session,
+      })
 
       router.push('/dashboard')
       router.refresh()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      console.error('Login error:', err)
+      setError(err instanceof Error ? err.message : 'An error occurred during login')
     } finally {
       setLoading(false)
     }
   }
 
   const handleGoogleLogin = async () => {
+    setLoading(true)
+
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error: signInError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
 
-      if (error) throw error
-    } catch (err: any) {
-      setError(err.message)
+      if (signInError) throw signInError
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred during Google login')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -57,7 +75,7 @@ export default function LoginPage() {
           Login
           <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 transform -rotate-1 translate-y-1"></div>
         </h1>
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleEmailLogin} className="space-y-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-900 mb-2">
               Email
@@ -111,7 +129,13 @@ export default function LoginPage() {
                    transition duration-200 ease-in-out shadow-sm flex items-center justify-center gap-2"
           disabled={loading}
         >
-          <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+          <Image
+            src="https://www.google.com/favicon.ico"
+            alt="Google"
+            width={20}
+            height={20}
+            className="w-5 h-5"
+          />
           Sign in with Google
         </button>
         <p className="mt-4 text-center text-sm text-gray-500">

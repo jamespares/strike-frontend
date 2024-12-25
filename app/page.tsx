@@ -1,10 +1,10 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useEffect, useState } from 'react'
 import { Session } from '@supabase/supabase-js'
+import Image from 'next/image'
 
 const SquigglyUnderline = () => (
   <svg
@@ -55,7 +55,7 @@ export default function Home() {
 
   const handleAction = () => {
     if (session) {
-      router.push('/dashboard')
+      router.push('/survey/1')
     } else {
       router.push('/login')
     }
@@ -69,9 +69,11 @@ export default function Home() {
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center">
               <div className="flex-shrink-0 h-10 w-auto flex items-center">
-                <img
+                <Image
                   src="/logo-square.png"
                   alt="Strike Logo"
+                  width={40}
+                  height={40}
                   className="h-full w-auto object-contain"
                 />
               </div>
@@ -153,7 +155,7 @@ export default function Home() {
                 </span>
                 <span className="block text-emerald-500 mt-2">Not sure how to start?</span>
                 <span className="block text-gray-900 relative inline-block mt-2">
-                  You're in the right place.
+                  You&apos;re in the right place.
                   <div
                     className="absolute bottom-0 left-0 w-full h-1 bg-emerald-400/30 
                                 transform -rotate-1 translate-y-1"
@@ -161,7 +163,7 @@ export default function Home() {
                 </span>
               </h1>
               <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-xl lg:text-lg xl:text-xl">
-                Tell us about your idea and we'll build you a bespoke business plan including
+                Tell us about your idea and we&apos;ll build you a bespoke business plan including
                 revenue projections and a custom marketing strategy. All based on proven wisdom from
                 leading VCs, start-up accelerators and the best indie hackers. Launch your idea
                 today!
@@ -210,16 +212,20 @@ export default function Home() {
             </p>
             <div className="mt-6 flex justify-center items-center space-x-16">
               <div className="h-14 flex items-center transition-all duration-200">
-                <img
+                <Image
                   src="/y-combinator-logo.png"
                   alt="Y Combinator"
+                  width={56}
+                  height={56}
                   className="h-full w-auto object-contain"
                 />
               </div>
               <div className="h-14 w-32 flex items-center transition-all duration-200 overflow-hidden">
-                <img
+                <Image
                   src="/sequoia-logo.png"
                   alt="Sequoia Capital"
+                  width={128}
+                  height={45}
                   className="h-[80%] w-auto object-contain -ml-1"
                 />
               </div>
@@ -418,8 +424,8 @@ export default function Home() {
               </div>
               <h3 className="text-lg font-semibold mb-2">Get Your Custom Plan</h3>
               <p className="text-gray-500">
-                We'll analyze market data and proven frameworks to create your tailored business
-                strategy
+                We&apos;ll analyze market data and proven frameworks to create your tailored
+                business strategy
               </p>
             </div>
             <div className="text-center">
@@ -458,8 +464,8 @@ export default function Home() {
                 </div>
               </div>
               <p className="text-gray-600">
-                "The revenue projections and marketing strategy were exactly what I needed to get
-                started."
+                &quot;The revenue projections and marketing strategy were exactly what I needed to
+                get started.&quot;
               </p>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -471,8 +477,8 @@ export default function Home() {
                 </div>
               </div>
               <p className="text-gray-600">
-                "The financial planning helped me understand exactly what I needed to launch and
-                grow."
+                &quot;The financial planning helped me understand exactly what I needed to launch
+                and grow.&quot;
               </p>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -484,7 +490,8 @@ export default function Home() {
                 </div>
               </div>
               <p className="text-gray-600">
-                "Clear, actionable marketing strategy that helped me find my first customers."
+                &quot;Clear, actionable marketing strategy that helped me find my first
+                customers.&quot;
               </p>
             </div>
           </div>

@@ -2,7 +2,25 @@ import { NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 
-export async function GET(request: Request) {
+interface AssetContent {
+  businessPlan: {
+    [key: string]: {
+      title: string
+      content: string[]
+      metrics?: Array<{
+        label: string
+        value: string | number
+        unit?: string
+      }>
+    }
+  }
+}
+
+interface Asset {
+  content: AssetContent
+}
+
+export async function GET(_request: Request) {
   try {
     // Initialize Supabase client
     const supabase = createRouteHandlerClient({ cookies })
@@ -25,7 +43,7 @@ export async function GET(request: Request) {
       .eq('status', 'completed')
       .order('last_updated', { ascending: false })
       .limit(1)
-      .single()
+      .single() as { data: Asset | null; error: Error | null }
 
     if (assetError || !asset) {
       return NextResponse.json({ error: 'Business plan not found' }, { status: 404 })
@@ -33,11 +51,9 @@ export async function GET(request: Request) {
 
     // Return just the business plan data, not the PDF
     return NextResponse.json(asset.content.businessPlan)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching business plan:', error)
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch business plan' },
-      { status: 500 }
-    )
+    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch business plan'
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }

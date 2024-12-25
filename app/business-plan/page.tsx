@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { DocumentViewer } from '@/components'
+import { GenericDocumentViewer as DocumentViewer } from '@/components/viewers/GenericDocumentViewer'
 
 interface BusinessPlanSection {
   title: string

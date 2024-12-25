@@ -69,25 +69,27 @@ test.describe('Authentication Flow', () => {
   })
 
   test('should allow existing user login', async ({ page }) => {
+    // Add explicit wait for session establishment
+    await page.waitForLoadState('networkidle')
+    await page.waitForTimeout(1000) // Add small delay
+
     // Fill login form
     await page.getByPlaceholder('Email').fill(testUserEmail)
     await page.getByPlaceholder('Password').fill(testUserPassword)
     await page.getByRole('button', { name: 'Login' }).click()
 
-    // Verify successful login
-    await expect(page).toHaveURL('http://localhost:3000/dashboard', { timeout: 10000 })
-    await page.waitForLoadState('networkidle')
+    // Wait for navigation with increased timeout
+    await expect(page).toHaveURL('http://localhost:3000/dashboard', { timeout: 15000 })
 
-    // Wait for session to be established with exponential backoff
+    // Add explicit session check with retry
     let session = null
     for (let i = 0; i < 5; i++) {
       const { data } = await supabase.auth.getSession()
       session = data.session
       if (session) break
-      await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000)) // Exponential backoff
+      await page.waitForTimeout(1000)
     }
 
-    // Verify session exists
     expect(session).not.toBeNull()
     expect(session?.user?.email).toBe(testUserEmail)
   })

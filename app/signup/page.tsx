@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export default function SignUpPage() {
@@ -29,12 +30,12 @@ export default function SignUpPage() {
 
       if (error) throw error
 
-      if (data.user) {
+      if (data?.user) {
         router.push('/dashboard')
         router.refresh()
       }
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred during signup')
     } finally {
       setLoading(false)
     }
@@ -42,7 +43,7 @@ export default function SignUpPage() {
 
   const handleGoogleSignUp = async () => {
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
@@ -50,8 +51,8 @@ export default function SignUpPage() {
       })
 
       if (error) throw error
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred during Google signup')
     }
   }
 
@@ -116,7 +117,13 @@ export default function SignUpPage() {
                    transition duration-200 ease-in-out shadow-sm flex items-center justify-center gap-2"
           disabled={loading}
         >
-          <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
+          <Image
+            src="https://www.google.com/favicon.ico"
+            alt="Google"
+            width={20}
+            height={20}
+            className="w-5 h-5"
+          />
           Sign up with Google
         </button>
         <p className="mt-4 text-center text-sm text-gray-500">

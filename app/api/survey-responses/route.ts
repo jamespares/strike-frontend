@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import * as yup from 'yup'
@@ -46,8 +45,9 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ data }, { status: 200 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('API route error:', error)
-    return NextResponse.json({ error: error.message }, { status: 400 })
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred'
+    return NextResponse.json({ error: errorMessage }, { status: 400 })
   }
 }
